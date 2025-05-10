@@ -112,12 +112,13 @@ def load_data():
         else:
             df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
         
-        # Verificar fechas no válidas
+        # Identificar filas con fechas no válidas
+        df['Fecha_Valida'] = df['Fecha'].notna()
         invalid_dates = df['Fecha'].isna().sum()
         if invalid_dates > 0:
             st.warning(f"Se encontraron {invalid_dates} fechas no válidas que se excluirán del análisis.")
         
-        df = df.dropna(subset=['Fecha'])  # Eliminar filas con fechas no válidas
+        df = df.dropna(subset=['Fecha'])  # Eliminar filas con fechas no válidas para el análisis
         df['Día de la Semana'] = df['Fecha'].dt.day_name()
         day_translation = {
             'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
@@ -152,8 +153,9 @@ CONFIG = {
         'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
     },
     'styles': {
-        'metric_box': 'border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center;',
-        'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px 0; color: white;'
+        'metric_box': 'border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%;',
+        'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px 0; color: white;',
+        'invalid_row': 'background-color: #ffcccc; color: black;'  # Estilo para filas con fechas no válidas
     },
     'colors': {
         'primary': '#4CAF50',
@@ -285,9 +287,15 @@ st.markdown(f"""
 .stSidebar {{background-color: #e8ecef;}}
 h1, h2, h3 {{color: {CONFIG['colors']['secondary']};}}
 .metric-box {{{CONFIG['styles']['metric_box']}}}
+.metric-label {{font-weight: bold; margin-bottom: 5px;}}
 .alert-box {{{CONFIG['styles']['alert_box']}}}
 .stMetric {{font-size: 18px;}}
 .logo-container {{text-align: center; margin-bottom: 20px;}}
+.dataframe {{width: 100%;}}
+.dataframe tr:nth-child(even) {{background-color: #f2f2f2;}}
+.dataframe tr:nth-child(odd) {{background-color: white;}}
+.dataframe th {{background-color: #d3d3d3; color: black; font-weight: bold;}}
+.dataframe td.invalid {{background-color: #ffcccc; color: black;}} /* Resaltar filas con fechas no válidas */
 </style>
 """, unsafe_allow_html=True)
 
@@ -403,23 +411,28 @@ else:
 
     with col1:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric(TRANSLATIONS[lang_code]['orders'], f"{total_orders:,}")
+        st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["orders"]}</div>', unsafe_allow_html=True)
+        st.metric("", f"{total_orders:,}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col2:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric(TRANSLATIONS[lang_code]['lines'], f"{total_lines_filtered:,}")
+        st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["lines"]}</div>', unsafe_allow_html=True)
+        st.metric("", f"{total_lines_filtered:,}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col3:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric(TRANSLATIONS[lang_code]['commission'], f"₡{total_commission:,.2f}")
+        st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["commission"]}</div>', unsafe_allow_html=True)
+        st.metric("", f"₡{total_commission:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col4:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric(TRANSLATIONS[lang_code]['accounts_aseavna'], f"₡{total_cuentas_cobrar_aseavna:,.2f}")
+        st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["accounts_aseavna"]}</div>', unsafe_allow_html=True)
+        st.metric("", f"₡{total_cuentas_cobrar_aseavna:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col5:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric(TRANSLATIONS[lang_code]['accounts_avna'], f"₡{total_cuentas_cobrar_avna:,.2f}")
+        st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["accounts_avna"]}</div>', unsafe_allow_html=True)
+        st.metric("", f"₡{total_cuentas_cobrar_avna:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Crear pestañas
@@ -440,11 +453,13 @@ else:
         col1, col2 = st.columns(2)
         with col1:
             st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-            st.metric(TRANSLATIONS[lang_code]['top_product'], most_sold)
+            st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["top_product"]}</div>', unsafe_allow_html=True)
+            st.metric("", most_sold)
             st.markdown('</div>', unsafe_allow_html=True)
         with col2:
             st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-            st.metric(TRANSLATIONS[lang_code]['unique_clients'], len(filtered_df['Cliente/Nombre'].unique()))
+            st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["unique_clients"]}</div>', unsafe_allow_html=True)
+            st.metric("", len(filtered_df['Cliente/Nombre'].unique()))
             st.markdown('</div>', unsafe_allow_html=True)
         
         daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index()
@@ -716,7 +731,15 @@ else:
     with tab7:
         st.header(TRANSLATIONS[lang_code]['raw_data'])
         if st.checkbox(TRANSLATIONS[lang_code]['show_raw_data']):
-            st.dataframe(filtered_df)
+            # Obtener el DataFrame original con la marca de fechas no válidas
+            raw_df = df.copy()
+            raw_df['Fecha_Valida'] = raw_df['Fecha'].notna()
+            # Convertir a HTML con estilo para resaltar filas no válidas
+            styled_df = raw_df.style.apply(
+                lambda x: ['invalid' if not x['Fecha_Valida'] else '' for _ in x],
+                axis=1
+            ).hide_columns(['Fecha_Valida']).set_properties(**{'text-align': 'left'})
+            st.write(styled_df.to_html(classes='dataframe'), unsafe_allow_html=True)
 
 # Pie de página
 st.markdown("---")
