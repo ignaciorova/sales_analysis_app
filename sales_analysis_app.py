@@ -250,7 +250,7 @@ TRANSLATIONS = {
         'reset_filters': 'Reset Filters',
         'metrics': 'General Metrics',
         'duplicates': 'Duplicate Lunches',
-        'client_sales': 'Sales by Client',
+        'client_sales': 'Ventas por Cliente',
         'predictive': 'Predictive Analysis',
         'visualizations': 'Visualizations',
         'export': 'Export Summary',
@@ -526,7 +526,6 @@ else:
     with tab3:
         st.header(TRANSLATIONS[lang_code]['client_sales'])
         client_sales = filtered_df.groupby('Cliente/Nombre').agg({
-            'Total': 'sum',  # Suma de la columna 'Total' para Ventas Totales
             'Total_Cuentas_Cobrar': 'sum',
             'Número de recibo': 'nunique',
             'Comision': 'sum',
@@ -536,7 +535,6 @@ else:
         }).reset_index()
         client_sales.columns = [
             'Cliente',
-            'Ventas Totales (₡)',
             'Total Cuentas por Cobrar (₡)',
             'Número de Órdenes',
             'Comisión Total (₡)',
@@ -566,7 +564,6 @@ else:
         
         # Mostrar tabla completa
         client_sales_display = client_sales.copy()
-        client_sales_display['Ventas Totales (₡)'] = client_sales_display['Ventas Totales (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Total Cuentas por Cobrar (₡)'] = client_sales_display['Total Cuentas por Cobrar (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Comisión Total (₡)'] = client_sales_display['Comisión Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Ctas. por Cobrar Aseavna (₡)'] = client_sales_display['Ctas. por Cobrar Aseavna (₡)'].apply(lambda x: f"₡{x:,.2f}")
