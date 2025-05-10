@@ -421,14 +421,17 @@ else:
             st.markdown('</div>', unsafe_allow_html=True)
         
         daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index()
-        fig_summary = px.line(
-            daily_summary, x='Fecha', y='Total',
-            labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
-            title=TRANSLATIONS[lang_code]['daily_sales'],
-            template="plotly_white",
-            color_discrete_sequence=["#4CAF50"]
-        )
-        st.plotly_chart(fig_summary, use_container_width=True)
+        if not daily_summary.empty:
+            fig_summary = px.line(
+                daily_summary, x='Fecha', y='Total',
+                labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
+                title=TRANSLATIONS[lang_code]['daily_sales'],
+                template="plotly_white",
+                color_discrete_sequence=["#4CAF50"]
+            )
+            st.plotly_chart(fig_summary, use_container_width=True)
+        else:
+            st.warning("No hay datos suficientes para mostrar la tendencia diaria.")
 
     # Tab 2: Verificación de Almuerzos Ejecutivos Duplicados
     with tab2:
@@ -588,47 +591,57 @@ else:
     with tab5:
         st.header(TRANSLATIONS[lang_code]['visualizations'])
         top10 = filtered_df.groupby('Líneas de la orden')['Total'].sum().nlargest(10).reset_index()
-        fig1 = px.bar(
-            top10, x='Líneas de la orden', y='Total',
-            title=TRANSLATIONS[lang_code]['top_products'],
-            labels={'Total': 'Ventas (₡)', 'Líneas de la orden': 'Producto'},
-            template="plotly_white",
-            color_discrete_sequence=["#4CAF50"],
-            hover_data={'Total': ':,.2f'}
-        )
-        fig1.update_layout(
-            xaxis_tickangle=45,
-            xaxis_title_font_size=14,
-            yaxis_title_font_size=14,
-            title_x=0.5,
-            margin=dict(l=40, r=40, t=80, b=100)
-        )
-        st.plotly_chart(fig1, use_container_width=True)
-        
-        fig2 = px.line(
-            x=pd.to_datetime(daily['Fecha']),
-            y=daily['Total'],
-            labels={'x': 'Fecha', 'y': 'Ventas (₡)'},
-            title=TRANSLATIONS[lang_code]['daily_trend'],
-            template="plotly_white",
-            color_discrete_sequence=["#4CAF50"]
-        )
-        fig2.update_layout(
-            xaxis_title_font_size=14,
-            yaxis_title_font_size=14,
-            title_x=0.5
-        )
-        st.plotly_chart(fig2, use_container_width=True)
+        if not top10.empty:
+            fig1 = px.bar(
+                top10, x='Líneas de la orden', y='Total',
+                title=TRANSLATIONS[lang_code]['top_products'],
+                labels={'Total': 'Ventas (₡)', 'Líneas de la orden': 'Producto'},
+                template="plotly_white",
+                color_discrete_sequence=["#4CAF50"],
+                hover_data={'Total': ':,.2f'}
+            )
+            fig1.update_layout(
+                xaxis_tickangle=45,
+                xaxis_title_font_size=14,
+                yaxis_title_font_size=14,
+                title_x=0.5,
+                margin=dict(l=40, r=40, t=80, b=100)
+            )
+            st.plotly_chart(fig1, use_container_width=True)
+        else:
+            st.warning("No hay datos suficientes para mostrar los top 10 productos.")
+
+        daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index()
+        if not daily_summary.empty:
+            fig2 = px.line(
+                x=pd.to_datetime(daily_summary['Fecha']),
+                y=daily_summary['Total'],
+                labels={'x': 'Fecha', 'y': 'Ventas (₡)'},
+                title=TRANSLATIONS[lang_code]['daily_trend'],
+                template="plotly_white",
+                color_discrete_sequence=["#4CAF50"]
+            )
+            fig2.update_layout(
+                xaxis_title_font_size=14,
+                yaxis_title_font_size=14,
+                title_x=0.5
+            )
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.warning("No hay datos suficientes para mostrar la tendencia diaria.")
         
         grp = filtered_df.groupby('Cliente/Nombre principal')['Total'].sum().reset_index()
-        fig3 = px.pie(
-            grp, names='Cliente/Nombre principal', values='Total',
-            title=TRANSLATIONS[lang_code]['sales_by_group'],
-            template="plotly_white",
-            color_discrete_sequence=px.colors.sequential.Viridis
-        )
-        fig3.update_layout(title_x=0.5)
-        st.plotly_chart(fig3, use_container_width=True)
+        if not grp.empty:
+            fig3 = px.pie(
+                grp, names='Cliente/Nombre principal', values='Total',
+                title=TRANSLATIONS[lang_code]['sales_by_group'],
+                template="plotly_white",
+                color_discrete_sequence=px.colors.sequential.Viridis
+            )
+            fig3.update_layout(title_x=0.5)
+            st.plotly_chart(fig3, use_container_width=True)
+        else:
+            st.warning("No hay datos suficientes para mostrar las ventas por grupo de clientes.")
 
     # Tab 6: Resumen de Métricas para Exportar
     with tab6:
