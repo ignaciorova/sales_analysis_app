@@ -526,7 +526,7 @@ else:
     with tab3:
         st.header(TRANSLATIONS[lang_code]['client_sales'])
         client_sales = filtered_df.groupby('Cliente/Nombre').agg({
-            'Total': 'sum',
+            'Total': 'sum',  # Suma de la columna 'Total' para Ventas Totales
             'Total_Cuentas_Cobrar': 'sum',
             'Número de recibo': 'nunique',
             'Comision': 'sum',
