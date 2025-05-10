@@ -56,29 +56,18 @@ def load_data(uploaded_file):
             'Cliente/Nombre principal': 'Cliente/Nombre principal',
             'Cliente/Nombre': 'Cliente/Nombre',
             'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad',
-            'Total': ['Total', 'Precio total colaborador', 'Monto Neto'],  # Intenta varios nombres
-            'Monto Descuento': ['Monto Descuento', 'Descuento'],
-            'Monto Neto': ['Monto Neto', 'Precio total'],
+            'Total': 'Precio total colaborador',  # Mapeo a la columna existente
+            'Comision': 'Comision Aseavna',      # Nueva métrica
             'Líneas de la orden': 'Líneas de la orden',
             'Número de recibo': 'Número de recibo'
         }
         
         # Asignar columnas con fallback
-        for expected_col, possible_names in column_mapping.items():
-            if isinstance(possible_names, list):
-                found = False
-                for name in possible_names:
-                    if name in df.columns:
-                        df[expected_col] = df[name]
-                        found = True
-                        break
-                if not found:
-                    df[expected_col] = 'Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0
+        for expected_col, actual_col in column_mapping.items():
+            if actual_col in df.columns:
+                df[expected_col] = df[actual_col]
             else:
-                if possible_names in df.columns:
-                    df[expected_col] = df[possible_names]
-                else:
-                    df[expected_col] = 'Desconocido' if 'Cliente' in possible_names or 'Líneas' in possible_names else 0
+                df[expected_col] = 'Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0
         
         # Limpieza de datos
         df['Cliente/Código de barras'] = df['Cliente/Código de barras'].fillna('Desconocido')
@@ -86,8 +75,7 @@ def load_data(uploaded_file):
         df['Cliente/Nombre'] = df['Cliente/Nombre'].fillna('Desconocido')
         df['Líneas de la orden/Cantidad'] = df['Líneas de la orden/Cantidad'].fillna(0)
         df['Total'] = pd.to_numeric(df['Total'], errors='coerce').fillna(0)
-        df['Monto Descuento'] = pd.to_numeric(df['Monto Descuento'], errors='coerce').fillna(0)
-        df['Monto Neto'] = pd.to_numeric(df['Monto Neto'], errors='coerce').fillna(0)
+        df['Comision'] = pd.to_numeric(df['Comision'], errors='coerce').fillna(0)
         df['Líneas de la orden'] = df['Líneas de la orden'].fillna('Desconocido')
         
         # Añadir día de la semana
@@ -237,10 +225,10 @@ else:
     # Métricas Generales
     st.header("Métricas Generales")
     col1, col2, col3, col4 = st.columns(4)
-    total_sales = filtered_df['Monto Neto'].sum()
+    total_sales = filtered_df['Total'].sum()
     num_orders = filtered_df['Número de recibo'].nunique()
     avg_order_value = total_sales / num_orders if num_orders > 0 else 0
-    total_disc = filtered_df['Monto Descuento'].sum()
+    total_commission = filtered_df['Comision'].sum()
     
     with col1:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
@@ -256,22 +244,22 @@ else:
         st.markdown('</div>', unsafe_allow_html=True)
     with col4:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric("Descuentos Totales", f"₡{total_disc:,.2f}")
+        st.metric("Comisión Total", f"₡{total_commission:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Análisis de Ventas por Cliente
     st.header("Análisis de Ventas por Cliente")
     client_sales = filtered_df.groupby('Cliente/Nombre').agg({
-        'Monto Neto': 'sum',
+        'Total': 'sum',
         'Número de recibo': 'nunique',
-        'Monto Descuento': 'sum',
+        'Comision': 'sum',
         'Líneas de la orden': lambda x: x.mode()[0] if not x.empty else 'N/A'
     }).reset_index()
     client_sales.columns = [
         'Cliente',
         'Ventas Totales (₡)',
         'Número de Órdenes',
-        'Descuentos Totales (₡)',
+        'Comisión Total (₡)',
         'Producto Más Comprado'
     ]
     
@@ -314,12 +302,12 @@ else:
     
     # Análisis Predictivo
     st.header("Análisis Predictivo")
-    daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Monto Neto'].sum().reset_index(name='Monto Neto')
+    daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index(name='Total')
     daily['Days'] = (pd.to_datetime(daily['Fecha']) - pd.to_datetime(daily['Fecha'].min())).dt.days
     
     if len(daily) > 1:
         X = daily[['Days']]
-        y = daily['Monto Neto']
+        y = daily['Total']
         model = LinearRegression().fit(X, y)
         
         future_X = np.array([X['Days'].iloc[-1] + i for i in range(1, 8)]).reshape(-1, 1)
@@ -328,26 +316,26 @@ else:
         
         pred_df = pd.DataFrame({
             'Fecha': future_dates,
-            'Monto Neto': preds,
+            'Total': preds,
             'Tipo': 'Predicción'
         })
         hist_df = pd.DataFrame({
             'Fecha': pd.to_datetime(daily['Fecha']),
-            'Monto Neto': daily['Monto Neto'],
+            'Total': daily['Total'],
             'Tipo': 'Histórico'
         })
         combined = pd.concat([hist_df, pred_df])
         
         st.subheader("Predicción de Ventas para los Próximos 7 Días")
         fig_pred = px.line(
-            combined, x='Fecha', y='Monto Neto', color='Tipo',
-            labels={'Monto Neto': 'Ventas (₡)', 'Fecha': 'Fecha'},
+            combined, x='Fecha', y='Total', color='Tipo',
+            labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
             title="Tendencia Histórica y Predicción de Ventas"
         )
         st.plotly_chart(fig_pred, use_container_width=True)
         
         # Crecimiento mensual productos
-        trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Monto Neto'].sum().unstack(fill_value=0)
+        trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total'].sum().unstack(fill_value=0)
         
         if trends.shape[1] >= 2:
             growth = ((trends.iloc[:, -1] - trends.iloc[:, -2]) / trends.iloc[:, -2].replace(0, np.nan) * 100).replace([np.inf, -np.inf], 0).dropna().sort_values(ascending=False)
@@ -363,11 +351,11 @@ else:
     # Visualizaciones Detalladas
     st.header("Visualizaciones Detalladas")
     # Top 10 productos
-    top10 = filtered_df.groupby('Líneas de la orden')['Monto Neto'].sum().nlargest(10).reset_index()
+    top10 = filtered_df.groupby('Líneas de la orden')['Total'].sum().nlargest(10).reset_index()
     fig1 = px.bar(
-        top10, x='Líneas de la orden', y='Monto Neto',
+        top10, x='Líneas de la orden', y='Total',
         title="Top 10 Productos por Ventas",
-        labels={'Monto Neto': 'Ventas (₡)', 'Líneas de la orden': 'Producto'}
+        labels={'Total': 'Ventas (₡)', 'Líneas de la orden': 'Producto'}
     )
     fig1.update_layout(xaxis_tickangle=45)
     st.plotly_chart(fig1, use_container_width=True)
@@ -375,30 +363,30 @@ else:
     # Tendencia diaria
     fig2 = px.line(
         x=pd.to_datetime(daily['Fecha']),
-        y=daily['Monto Neto'],
+        y=daily['Total'],
         labels={'x': 'Fecha', 'y': 'Ventas (₡)'},
         title="Tendencia Diaria de Ventas"
     )
     st.plotly_chart(fig2, use_container_width=True)
     
     # Pie de ventas por grupo
-    grp = filtered_df.groupby('Cliente/Nombre principal')['Monto Neto'].sum().reset_index()
+    grp = filtered_df.groupby('Cliente/Nombre principal')['Total'].sum().reset_index()
     fig3 = px.pie(
-        grp, names='Cliente/Nombre principal', values='Monto Neto',
+        grp, names='Cliente/Nombre principal', values='Total',
         title="Ventas por Grupo de Clientes"
     )
     st.plotly_chart(fig3, use_container_width=True)
     
     # Resumen de Métricas para exportar
-    most_sold = filtered_df.groupby('Líneas de la orden')['Monto Neto'].sum().idxmax() if not filtered_df.empty else "N/A"
-    least_sold = filtered_df.groupby('Líneas de la orden')['Monto Neto'].sum().idxmin() if not filtered_df.empty else "N/A"
+    most_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmax() if not filtered_df.empty else "N/A"
+    least_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmin() if not filtered_df.empty else "N/A"
     
     st.header("Exportar Resumen de Métricas")
     report = {
         "Ventas Totales (₡)": total_sales,
         "Número de Órdenes": num_orders,
         "Valor Promedio por Orden (₡)": avg_order_value,
-        "Descuentos Totales (₡)": total_disc,
+        "Comisión Total (₡)": total_commission,
         "Clientes Únicos": len(clients) - 1,
         "Producto Más Vendido": most_sold,
         "Producto Menos Vendido": least_sold
