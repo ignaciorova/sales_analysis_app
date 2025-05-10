@@ -61,8 +61,30 @@ def load_data(file, file_name=None):
             df = pd.read_excel(file)
         else:
             df = pd.read_excel(file, engine='openpyxl')
-        # Convertir fecha serial de Excel a datetime
-        df['Fecha'] = pd.to_datetime(df['Fecha'], origin='1899-12-30', unit='D', errors='coerce')
+        
+        # Verificar columnas esperadas
+        expected_columns = ['Fecha', 'Cliente/Nombre', 'Cliente/Nombre principal', 'Líneas de la orden', 
+                           'Precio total colaborador', 'Comision Aseavna', 'Líneas de la orden/Cantidad', 'Número de recibo']
+        missing_columns = [col for col in expected_columns if col not in df.columns]
+        if missing_columns:
+            raise ValueError(f"Faltan las siguientes columnas en el archivo: {missing_columns}")
+        
+        # Manejo de la columna Fecha
+        if pd.api.types.is_datetime64_any_dtype(df['Fecha']):
+            # Si ya es datetime, no necesita conversión
+            st.write("La columna 'Fecha' ya está en formato datetime.")
+        else:
+            # Intentar convertir como número serial de Excel
+            try:
+                df['Fecha'] = pd.to_datetime(df['Fecha'], origin='1899-12-30', unit='D', errors='coerce')
+            except:
+                # Si falla, intentar como texto o formato de fecha
+                df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+        
+        # Verificar si hay fechas nulas después de la conversión
+        if df['Fecha'].isna().any():
+            st.warning(f"Se encontraron {df['Fecha'].isna().sum()} filas con fechas inválidas. Estas se ignorarán en algunos análisis.")
+        
         # Limpieza de datos
         df['Cliente/Nombre'] = df['Cliente/Nombre'].fillna('Desconocido')
         df['Cliente/Nombre principal'] = df['Cliente/Nombre principal'].fillna('Desconocido')
@@ -71,6 +93,11 @@ def load_data(file, file_name=None):
         df['Comision Aseavna'] = pd.to_numeric(df['Comision Aseavna'], errors='coerce').fillna(0)
         df['Líneas de la orden/Cantidad'] = pd.to_numeric(df['Líneas de la orden/Cantidad'], errors='coerce').fillna(1)
         df['Número de recibo'] = df['Número de recibo'].fillna('Sin Recibo')
+        
+        # Mostrar información de depuración
+        st.write(f"Filas cargadas: {len(df)}")
+        st.write(f"Primeras fechas en la columna 'Fecha': {df['Fecha'].head().tolist()}")
+        
         return df
     except Exception as e:
         st.error(f"Error al cargar el archivo: {str(e)}")
