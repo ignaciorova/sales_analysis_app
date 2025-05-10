@@ -110,7 +110,7 @@ def load_data():
         if pd.api.types.is_numeric_dtype(df['Fecha']):
             df['Fecha'] = pd.to_datetime(df['Fecha'], unit='D', origin='1899-12-30', errors='coerce') - timedelta(days=2)
         else:
-            df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+            df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
         
         # Verificar fechas no válidas
         invalid_dates = df['Fecha'].isna().sum()
@@ -185,6 +185,7 @@ TRANSLATIONS = {
         'no_data': 'No se encontraron datos. Asegúrese de que el archivo "Órdenes del punto de venta (pos.order).xlsx" esté disponible en app/data/.',
         'metrics_summary': 'Resumen de Métricas Principales',
         'orders': 'Órdenes Totales',
+        'lines': 'Líneas Totales',
         'commission': 'Comisión Total',
         'accounts_aseavna': 'Ctas. por Cobrar Aseavna',
         'accounts_avna': 'Ctas. por Cobrar Avna',
@@ -236,6 +237,7 @@ TRANSLATIONS = {
         'no_data': 'No data found. Ensure the file "Órdenes del punto de venta (pos.order).xlsx" is available in app/data/.',
         'metrics_summary': 'Key Metrics Summary',
         'orders': 'Total Orders',
+        'lines': 'Total Lines',
         'commission': 'Total Commission',
         'accounts_aseavna': 'Accounts Receivable Aseavna',
         'accounts_avna': 'Accounts Receivable Avna',
@@ -359,6 +361,7 @@ else:
 
     # Aplicar filtros
     filtered_df = df.copy()
+    total_lines = len(filtered_df)  # Número total de líneas antes de filtrar por fechas
     if len(date_range) == 2:
         sd, ed = date_range
         sd = pd.to_datetime(sd)
@@ -367,8 +370,10 @@ else:
             (filtered_df['Fecha'] >= sd) &
             (filtered_df['Fecha'] <= ed)
         ]
-        # Depuración: mostrar el número de filas después de aplicar el filtro de fechas
+        # Depuración: mostrar el número de filas y órdenes después de aplicar el filtro de fechas
+        st.sidebar.write(f"Filas totales antes del filtro: {total_lines}")
         st.sidebar.write(f"Filas después de filtrar por fechas ({sd.date()} a {ed.date()}): {len(filtered_df)}")
+        st.sidebar.write(f"Órdenes únicas después del filtro: {filtered_df['Número de recibo'].nunique()}")
     else:
         st.warning("Por favor, selecciona un rango de fechas válido.")
 
@@ -389,8 +394,9 @@ else:
 
     # Panel de métricas principales (basado en filtered_df)
     st.subheader(TRANSLATIONS[lang_code]['metrics_summary'])
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     total_orders = filtered_df['Número de recibo'].nunique()
+    total_lines_filtered = len(filtered_df)
     total_commission = filtered_df['Comision'].sum()
     total_cuentas_cobrar_aseavna = filtered_df['Cuentas por a cobrar aseavna'].sum()
     total_cuentas_cobrar_avna = filtered_df['Cuentas por a Cobrar Avna'].sum()
@@ -401,13 +407,17 @@ else:
         st.markdown('</div>', unsafe_allow_html=True)
     with col2:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric(TRANSLATIONS[lang_code]['commission'], f"₡{total_commission:,.2f}")
+        st.metric(TRANSLATIONS[lang_code]['lines'], f"{total_lines_filtered:,}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col3:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric(TRANSLATIONS[lang_code]['accounts_aseavna'], f"₡{total_cuentas_cobrar_aseavna:,.2f}")
+        st.metric(TRANSLATIONS[lang_code]['commission'], f"₡{total_commission:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col4:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric(TRANSLATIONS[lang_code]['accounts_aseavna'], f"₡{total_cuentas_cobrar_aseavna:,.2f}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col5:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
         st.metric(TRANSLATIONS[lang_code]['accounts_avna'], f"₡{total_cuentas_cobrar_avna:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -668,6 +678,7 @@ else:
         
         report = {
             "Número de Órdenes": total_orders,
+            "Líneas Totales": total_lines_filtered,
             "Comisión Total (₡)": total_commission,
             "Ctas. por Cobrar Aseavna (₡)": total_cuentas_cobrar_aseavna,
             "Ctas. por Cobrar Avna (₡)": total_cuentas_cobrar_avna,
