@@ -160,8 +160,9 @@ CONFIG = {
         'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
     },
     'styles': {
-        'metric_box': 'border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center;',
-        'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px 0; color: white;'
+        'metric_box': 'border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%;',
+        'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; width: 90%;',
+        'chart_container': 'display: flex; justify-content: center; align-items: center; width: 100%; padding: 10px;'
     },
     'colors': {
         'primary': '#4CAF50',
@@ -288,14 +289,18 @@ st.set_page_config(
 # Estilo personalizado
 st.markdown(f"""
 <style>
-.main {{background-color: #f5f7fa;}}
-.stButton>button {{background-color: {CONFIG['colors']['primary']}; color: white; border-radius: 5px;}}
-.stSidebar {{background-color: #e8ecef;}}
-h1, h2, h3 {{color: {CONFIG['colors']['secondary']};}}
+.main {{background-color: #f5f7fa; padding: 20px;}}
+.stButton>button {{background-color: {CONFIG['colors']['primary']}; color: white; border-radius: 5px; margin: 0 auto; display: block;}}
+.stSidebar {{background-color: #e8ecef; padding: 10px;}}
+h1, h2, h3 {{color: {CONFIG['colors']['secondary']}; text-align: center;}}
 .metric-box {{{CONFIG['styles']['metric_box']}}}
 .alert-box {{{CONFIG['styles']['alert_box']}}}
-.stMetric {{font-size: 14px;}}
+.chart-container {{{CONFIG['styles']['chart_container']}}}
+.stMetric {{font-size: 14px; text-align: center;}}
 .logo-container {{text-align: center; margin-bottom: 20px;}}
+.stTabs {{display: flex; justify-content: center;}}
+.stTabs > div {{width: 100%; max-width: 1200px;}}
+.stColumn {{display: flex; justify-content: center; align-items: center;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -371,7 +376,7 @@ else:
         selected_centro = st.selectbox("Centro de Costos", centros_costos, key="centro_costos")
 
     if st.sidebar.button(TRANSLATIONS[lang_code]['reset_filters']):
-        st.rerun()  # Reemplazado st.experimental_rerun() por st.rerun()
+        st.rerun()
 
     # Aplicar filtros
     filtered_df = df.copy()
@@ -471,7 +476,15 @@ else:
                 template="plotly_white",
                 color_discrete_sequence=["#4CAF50"]
             )
+            fig_summary.update_layout(
+                margin=dict(l=40, r=40, t=80, b=40),
+                xaxis_title_font_size=14,
+                yaxis_title_font_size=14,
+                title_x=0.5
+            )
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
             st.plotly_chart(fig_summary, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("No hay datos suficientes para mostrar la tendencia diaria.")
 
@@ -609,11 +622,14 @@ else:
                     x=pred_df['Fecha'], y=pred_df['Lower'], mode='lines', line=dict(dash='dash', color='gray'), name='Límite Inferior'
                 )
                 fig_pred.update_layout(
+                    margin=dict(l=40, r=40, t=80, b=40),
                     xaxis_title_font_size=14,
                     yaxis_title_font_size=14,
                     title_x=0.5
                 )
+                st.markdown('<div class="chart-container">', unsafe_allow_html=True)
                 st.plotly_chart(fig_pred, use_container_width=True)
+                st.markdown('</div>', unsafe_allow_html=True)
                 
                 trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total'].sum().unstack(fill_value=0)
                 if trends.shape[1] >= 2:
@@ -640,8 +656,7 @@ else:
         # Top 10 Productos por Ventas con validación de datos
         top10 = viz_df.groupby('Líneas de la orden')['Total'].sum().nlargest(10).reset_index()
         if not top10.empty:
-            # Asegurar que los valores sean realistas (ejemplo: capear valores extremos)
-            top10['Total'] = top10['Total'].clip(upper=1000000)  # Límite máximo realista de 1M como ejemplo
+            top10['Total'] = top10['Total'].clip(upper=1000000)
             fig1 = px.bar(
                 top10, x='Líneas de la orden', y='Total',
                 title=TRANSLATIONS[lang_code]['top_products'],
@@ -651,32 +666,36 @@ else:
                 hover_data={'Total': ':,.2f'}
             )
             fig1.update_layout(
+                margin=dict(l=40, r=40, t=80, b=100),
                 xaxis_tickangle=45,
                 xaxis_title_font_size=14,
                 yaxis_title_font_size=14,
-                title_x=0.5,
-                margin=dict(l=40, r=40, t=80, b=100)
+                title_x=0.5
             )
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
             st.plotly_chart(fig1, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("No hay datos suficientes para mostrar los top 10 productos.")
 
         daily_summary = viz_df.groupby(viz_df['Fecha'].dt.date)['Total'].sum().reset_index()
         if not daily_summary.empty:
             fig2 = px.line(
-                x=pd.to_datetime(daily_summary['Fecha']),
-                y=daily_summary['Total'],
-                labels={'x': 'Fecha', 'y': 'Ventas (₡)'},
+                daily_summary, x='Fecha', y='Total',
+                labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
                 title=TRANSLATIONS[lang_code]['daily_trend'],
                 template="plotly_white",
                 color_discrete_sequence=["#4CAF50"]
             )
             fig2.update_layout(
+                margin=dict(l=40, r=40, t=80, b=40),
                 xaxis_title_font_size=14,
                 yaxis_title_font_size=14,
                 title_x=0.5
             )
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
             st.plotly_chart(fig2, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("No hay datos suficientes para mostrar la tendencia diaria.")
         
@@ -688,8 +707,13 @@ else:
                 template="plotly_white",
                 color_discrete_sequence=px.colors.sequential.Viridis
             )
-            fig3.update_layout(title_x=0.5)
+            fig3.update_layout(
+                margin=dict(l=40, r=40, t=80, b=40),
+                title_x=0.5
+            )
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
             st.plotly_chart(fig3, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("No hay datos suficientes para mostrar las ventas por grupo de clientes.")
 
