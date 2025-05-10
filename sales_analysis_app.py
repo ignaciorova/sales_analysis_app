@@ -10,6 +10,140 @@ from reportlab.lib.styles import getSampleStyleSheet
 import xlsxwriter
 from sklearn.linear_model import LinearRegression
 import numpy as np
+import statsmodels.api as sm
+
+# Configuración centralizada
+CONFIG = {
+    'columns': {
+        'Cliente/Código de barras': 'cliente/código de barras',
+        'Cliente/Nombre': 'cliente/nombre',
+        'Centro de Costos Aseavna': 'centro de costos aseavna',
+        'Fecha': 'fecha',
+        'Número de recibo': 'número de recibo',
+        'Cliente/Nombre principal': 'cliente/nombre principal',
+        'Total': 'precio total colaborador',
+        'Comision': 'comision aseavna',
+        'Cuentas por a cobrar aseavna': 'cuentas por a cobrar aseavna',
+        'Cuentas por a Cobrar Avna': 'cuentas por a cobrar avna',
+        'Líneas de la orden': 'líneas de la orden',
+        'Líneas de la orden/Cantidad': 'líneas de la orden/cantidad'
+    },
+    'styles': {
+        'metric_box': 'border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center;',
+        'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px 0; color: white;'
+    },
+    'colors': {
+        'primary': '#4CAF50',
+        'secondary': '#2c3e50',
+        'warning': '#ffeb3b'
+    }
+}
+
+# Soporte multi-idioma
+TRANSLATIONS = {
+    'es': {
+        'title': '📊 Dashboard de Análisis de Ventas - ASEAVNA',
+        'description': 'Análisis avanzado de órdenes de venta del sistema POS, con métricas, predicciones y reportes descargables por cliente.',
+        'filters_header': 'Filtros de Análisis',
+        'date_range': 'Rango de Fechas',
+        'select_period': 'Seleccionar Período',
+        'product_type': 'Tipo de Producto',
+        'client_group': 'Grupo de Clientes',
+        'day_of_week': 'Día de la Semana',
+        'specific_client': 'Cliente Específico',
+        'reset_filters': 'Restablecer Filtros',
+        'metrics': 'Métricas Generales',
+        'duplicates': 'Almuerzos Duplicados',
+        'client_sales': 'Ventas por Cliente',
+        'predictive': 'Análisis Predictivo',
+        'visualizations': 'Visualizaciones',
+        'export': 'Exportar Resumen',
+        'raw_data': 'Datos Crudos',
+        'no_data': 'No se encontraron datos. Asegúrese de que el archivo "Órdenes del punto de venta (pos.order).xlsx" esté disponible en app/data/.',
+        'metrics_summary': 'Resumen de Métricas Principales',
+        'orders': 'Órdenes Totales',
+        'commission': 'Comisión Total',
+        'accounts_aseavna': 'Ctas. por Cobrar Aseavna',
+        'accounts_avna': 'Ctas. por Cobrar Avna',
+        'top_product': 'Producto Más Vendido',
+        'unique_clients': 'Clientes Únicos',
+        'daily_sales': 'Resumen de Ventas Diarias',
+        'duplicates_detected': '⚠️ Se detectaron almuerzos ejecutivos duplicados:',
+        'no_duplicates': '✅ No se detectaron almuerzos ejecutivos duplicados en el mismo día.',
+        'download_excel': 'Descargar Duplicados (Excel)',
+        'download_pdf': 'Descargar Duplicados (PDF)',
+        'unusual_sales': '⚠️ Clientes con volumen de compras inusual:',
+        'export_client_sales': 'Exportar Reporte de Ventas por Cliente',
+        'download_csv': 'Descargar CSV',
+        'download_excel_client': 'Descargar Excel',
+        'download_pdf_client': 'Descargar PDF',
+        'predictive_subheader': 'Predicción de Ventas para los Próximos 7 Días',
+        'growth_subheader': 'Productos con Potencial de Crecimiento',
+        'no_predictive_data': 'No hay suficientes datos históricos para predicción (se requieren al menos 2 días).',
+        'no_monthly_data': 'No hay suficientes datos mensuales para calcular el crecimiento de productos (se requieren al menos dos meses).',
+        'predictive_error': 'Error en el análisis predictivo: {error}',
+        'top_products': 'Top 10 Productos por Ventas',
+        'daily_trend': 'Tendencia Diaria de Ventas',
+        'sales_by_group': 'Ventas por Grupo de Clientes',
+        'export_summary': 'Exportar Resumen de Métricas',
+        'download_summary_csv': 'Descargar Resumen (CSV)',
+        'download_summary_excel': 'Descargar Resumen (Excel)',
+        'download_summary_pdf': 'Descargar Resumen (PDF)',
+        'show_raw_data': 'Mostrar Datos Crudos',
+        'footer': 'Desarrollado por Wilfredos para ASEAVNA | Fuente de Datos: Órdenes del Punto de Venta (POS) | 2025'
+    },
+    'en': {
+        'title': '📊 Sales Analysis Dashboard - ASEAVNA',
+        'description': 'Advanced analysis of POS sales orders, with metrics, predictions, and downloadable client reports.',
+        'filters_header': 'Analysis Filters',
+        'date_range': 'Date Range',
+        'select_period': 'Select Period',
+        'product_type': 'Product Type',
+        'client_group': 'Client Group',
+        'day_of_week': 'Day of the Week',
+        'specific_client': 'Specific Client',
+        'reset_filters': 'Reset Filters',
+        'metrics': 'General Metrics',
+        'duplicates': 'Duplicate Lunches',
+        'client_sales': 'Sales by Client',
+        'predictive': 'Predictive Analysis',
+        'visualizations': 'Visualizations',
+        'export': 'Export Summary',
+        'raw_data': 'Raw Data',
+        'no_data': 'No data found. Ensure the file "Órdenes del punto de venta (pos.order).xlsx" is available in app/data/.',
+        'metrics_summary': 'Key Metrics Summary',
+        'orders': 'Total Orders',
+        'commission': 'Total Commission',
+        'accounts_aseavna': 'Accounts Receivable Aseavna',
+        'accounts_avna': 'Accounts Receivable Avna',
+        'top_product': 'Top Selling Product',
+        'unique_clients': 'Unique Clients',
+        'daily_sales': 'Daily Sales Summary',
+        'duplicates_detected': '⚠️ Duplicate executive lunches detected:',
+        'no_duplicates': '✅ No duplicate executive lunches detected on the same day.',
+        'download_excel': 'Download Duplicates (Excel)',
+        'download_pdf': 'Download Duplicates (PDF)',
+        'unusual_sales': '⚠️ Clients with unusual purchase volume:',
+        'export_client_sales': 'Export Client Sales Report',
+        'download_csv': 'Download CSV',
+        'download_excel_client': 'Download Excel',
+        'download_pdf_client': 'Download PDF',
+        'predictive_subheader': 'Sales Forecast for the Next 7 Days',
+        'growth_subheader': 'Products with Growth Potential',
+        'no_predictive_data': 'Not enough historical data for prediction (at least 2 days required).',
+        'no_monthly_data': 'Not enough monthly data to calculate product growth (at least two months required).',
+        'predictive_error': 'Error in predictive analysis: {error}',
+        'top_products': 'Top 10 Products by Sales',
+        'daily_trend': 'Daily Sales Trend',
+        'sales_by_group': 'Sales by Client Group',
+        'export_summary': 'Export Metrics Summary',
+        'download_summary_csv': 'Download Summary (CSV)',
+        'download_summary_excel': 'Download Summary (Excel)',
+        'download_summary_pdf': 'Download Summary (PDF)',
+        'show_raw_data': 'Show Raw Data',
+        'footer': 'Developed by Wilfredos for ASEAVNA | Data Source: Point of Sale (POS) Orders | 2025'
+    }
+}
 
 # Configuración de la página
 st.set_page_config(
@@ -19,97 +153,97 @@ st.set_page_config(
 )
 
 # Estilo personalizado
-st.markdown("""
-    <style>
-    .main {background-color: #f5f7fa;}
-    .stButton>button {background-color: #4CAF50; color: white; border-radius: 5px;}
-    .stSidebar {background-color: #e8ecef;}
-    h1, h2, h3 {color: #2c3e50;}
-    .metric-box {border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center;}
-    .alert-box {background-color: #ffeb3b; padding: 10px; border-radius: 5px; margin: 10px 0;}
-    .stMetric {font-size: 18px;}
-    </style>
+st.markdown(f"""
+<style>
+.main {{background-color: #f5f7fa;}}
+.stButton>button {{background-color: {CONFIG['colors']['primary']}; color: white; border-radius: 5px;}}
+.stSidebar {{background-color: #e8ecef;}}
+h1, h2, h3 {{color: {CONFIG['colors']['secondary']};}}
+.metric-box {{{CONFIG['styles']['metric_box']}}}
+.alert-box {{{CONFIG['styles']['alert_box']}}}
+.stMetric {{font-size: 18px;}}
+</style>
 """, unsafe_allow_html=True)
 
-# Título y descripción
-st.title("📊 Dashboard de Análisis de Ventas - ASEAVNA")
-st.markdown("Análisis avanzado de órdenes de venta del sistema POS, con métricas, predicciones y reportes descargables por cliente.")
+# Selección de idioma
+language = st.sidebar.selectbox("Idioma / Language", ["Español", "English"])
+lang_code = 'es' if language == "Español" else 'en'
 
+# Título y descripción
+st.title(TRANSLATIONS[lang_code]['title'])
+st.markdown(TRANSLATIONS[lang_code]['description'])
+
+# Carga de datos
 @st.cache_data
 def load_data():
-    try:
-        df = pd.read_excel("app/data/Órdenes del punto de venta (pos.order).xlsx", engine='openpyxl')
-        
-        # Detectar si 'Fecha' es serial de Excel (numérico) o ya datetime
+    def load_excel():
+        try:
+            df = pd.read_excel("app/data/Órdenes del punto de venta (pos.order).xlsx", engine='openpyxl')
+            return df
+        except Exception as e:
+            st.error(f"Error al cargar los datos: {str(e)}")
+            return pd.DataFrame()
+
+    def validate_data(df):
+        required_cols = ['Fecha', 'Total', 'Cliente/Nombre', 'Líneas de la orden']
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            st.error(f"Faltan las columnas: {', '.join(missing_cols)}")
+            return False
+        return True
+
+    def map_columns(df):
+        df_columns = {col.strip().lower(): col for col in df.columns}
+        for expected_col, search_col in CONFIG['columns'].items():
+            found_col = next((col for col_name, col in df_columns.items() if col_name == search_col.strip().lower()), None)
+            df[expected_col] = df[found_col] if found_col else ('Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0)
+        return df
+
+    def clean_data(df):
+        defaults = {
+            'Cliente/Código de barras': 'Desconocido',
+            'Cliente/Nombre': 'Desconocido',
+            'Centro de Costos Aseavna': 'Desconocido',
+            'Cliente/Nombre principal': 'Desconocido',
+            'Líneas de la orden': 'Desconocido'
+        }
+        for col, default in defaults.items():
+            df[col] = df[col].fillna(default)
+        numeric_cols = ['Líneas de la orden/Cantidad', 'Total', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+        return df
+
+    def add_day_of_week(df):
         if pd.api.types.is_numeric_dtype(df['Fecha']):
             df['Fecha'] = pd.to_datetime(df['Fecha'], unit='D', origin='1899-12-30') - timedelta(days=2)
         else:
             df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
-        
-        # Mapeo flexible de columnas (ignorando mayúsculas/minúsculas y espacios)
-        df_columns = {col.strip().lower(): col for col in df.columns}
-        column_mapping = {
-            'Cliente/Código de barras': 'cliente/código de barras',
-            'Cliente/Nombre': 'cliente/nombre',
-            'Centro de Costos Aseavna': 'centro de costos aseavna',
-            'Fecha': 'fecha',
-            'Número de recibo': 'número de recibo',
-            'Cliente/Nombre principal': 'cliente/nombre principal',
-            'Total': 'precio total colaborador',
-            'Comision': 'comision aseavna',
-            'Cuentas por a cobrar aseavna': 'cuentas por a cobrar aseavna',
-            'Cuentas por a Cobrar Avna': 'cuentas por a cobrar avna',
-            'Líneas de la orden': 'líneas de la orden',
-            'Líneas de la orden/Cantidad': 'líneas de la orden/cantidad'
-        }
-        
-        # Asignar columnas con fallback
-        for expected_col, search_col in column_mapping.items():
-            found_col = next((col for col_name, col in df_columns.items() if col_name == search_col.strip().lower()), None)
-            if found_col:
-                df[expected_col] = df[found_col]
-            else:
-                df[expected_col] = 'Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0
-        
-        # Limpieza de datos
-        df['Cliente/Código de barras'] = df['Cliente/Código de barras'].fillna('Desconocido')
-        df['Cliente/Nombre'] = df['Cliente/Nombre'].fillna('Desconocido')
-        df['Centro de Costos Aseavna'] = df['Centro de Costos Aseavna'].fillna('Desconocido')
-        df['Cliente/Nombre principal'] = df['Cliente/Nombre principal'].fillna('Desconocido')
-        df['Líneas de la orden'] = df['Líneas de la orden'].fillna('Desconocido')
-        df['Líneas de la orden/Cantidad'] = pd.to_numeric(df['Líneas de la orden/Cantidad'], errors='coerce').fillna(0)
-        df['Total'] = pd.to_numeric(df['Total'], errors='coerce').fillna(0)
-        df['Comision'] = pd.to_numeric(df['Comision'], errors='coerce').fillna(0)
-        df['Cuentas por a cobrar aseavna'] = pd.to_numeric(df['Cuentas por a cobrar aseavna'], errors='coerce').fillna(0)
-        df['Cuentas por a Cobrar Avna'] = pd.to_numeric(df['Cuentas por a Cobrar Avna'], errors='coerce').fillna(0)
-        
-        # Añadir día de la semana sin depender del locale
         df['Día de la Semana'] = df['Fecha'].dt.day_name()
         day_translation = {
-            'Monday': 'Lunes',
-            'Tuesday': 'Martes',
-            'Wednesday': 'Miércoles',
-            'Thursday': 'Jueves',
-            'Friday': 'Viernes',
-            'Saturday': 'Sábado',
-            'Sunday': 'Domingo'
+            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
         }
         df['Día de la Semana'] = df['Día de la Semana'].map(day_translation).fillna(df['Día de la Semana'])
-        
         return df
 
-    except Exception as e:
-        st.error(f"Error al cargar los datos: {str(e)}")
+    df = load_excel()
+    if df.empty or not validate_data(df):
         return pd.DataFrame()
+    df = map_columns(df)
+    df = clean_data(df)
+    df = add_day_of_week(df)
+    return df
 
-def generate_pdf(data: pd.DataFrame, title: str, filename: str) -> io.BytesIO:
+@st.cache_data
+def generate_pdf(data: pd.DataFrame, title: str, filename: str, _data_hash: str) -> io.BytesIO:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
     styles = getSampleStyleSheet()
     elements.append(Paragraph(title, styles['Title']))
     elements.append(Paragraph(" ", styles['Normal']))
-    
+
     data_list = [data.columns.tolist()] + data.values.tolist()
     table = Table(data_list)
     table.setStyle(TableStyle([
@@ -127,7 +261,8 @@ def generate_pdf(data: pd.DataFrame, title: str, filename: str) -> io.BytesIO:
     buffer.seek(0)
     return buffer
 
-def generate_excel(data: pd.DataFrame, sheet_name: str) -> io.BytesIO:
+@st.cache_data
+def generate_excel(data: pd.DataFrame, sheet_name: str, _data_hash: str) -> io.BytesIO:
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
         data.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -144,48 +279,53 @@ def generate_excel(data: pd.DataFrame, sheet_name: str) -> io.BytesIO:
 df = load_data()
 
 if df.empty:
-    st.warning("No se encontraron datos. Asegúrese de que el archivo 'Órdenes del punto de venta (pos.order).xlsx' esté disponible en app/data/.")
+    st.warning(TRANSLATIONS[lang_code]['no_data'])
 else:
-    # Sidebar: filtros de fecha y categorías
-    st.sidebar.header("Filtros de Análisis")
-    st.sidebar.subheader("Rango de Fechas")
-    date_option = st.sidebar.selectbox(
-        "Seleccionar Período",
-        ["Personalizado", "Última Semana", "Último Mes", "Todo el Período"]
-    )
-    if date_option == "Última Semana":
-        end_date = df['Fecha'].max().date()
-        start_date = end_date - timedelta(days=7)
-    elif date_option == "Último Mes":
-        end_date = df['Fecha'].max().date()
-        start_date = end_date - timedelta(days=30)
-    elif date_option == "Todo el Período":
-        start_date = df['Fecha'].min().date()
-        end_date = df['Fecha'].max().date()
-    else:
-        start_date = df['Fecha'].min().date()
-        end_date = df['Fecha'].max().date()
-    
-    date_range = st.sidebar.date_input(
-        "Rango de Fechas",
-        [start_date, end_date],
-        min_value=df['Fecha'].min().date(),
-        max_value=df['Fecha'].max().date()
-    )
-    
-    # Listas de filtros convirtiendo todo a str para evitar mezcla de tipos
-    product_types = ['Todos'] + sorted(df['Líneas de la orden'].dropna().astype(str).unique().tolist())
-    selected_product = st.sidebar.selectbox("Tipo de Producto", product_types)
-    
-    client_groups = ['Todos'] + sorted(df['Cliente/Nombre principal'].dropna().astype(str).unique().tolist())
-    selected_client_grp = st.sidebar.selectbox("Grupo de Clientes", client_groups)
-    
-    days_of_week = ['Todos'] + sorted(df['Día de la Semana'].dropna().astype(str).unique().tolist())
-    selected_day = st.sidebar.selectbox("Día de la Semana", days_of_week)
-    
-    clients = ['Todos'] + sorted(df['Cliente/Nombre'].dropna().astype(str).unique().tolist())
-    selected_client = st.sidebar.selectbox("Cliente Específico", clients)
-    
+    # Sidebar: filtros
+    st.sidebar.header(TRANSLATIONS[lang_code]['filters_header'])
+    with st.sidebar.expander(TRANSLATIONS[lang_code]['date_range'], expanded=True):
+        date_option = st.selectbox(
+            TRANSLATIONS[lang_code]['select_period'],
+            ["Personalizado", "Última Semana", "Último Mes", "Todo el Período"],
+            key="date_option"
+        )
+        if date_option == "Última Semana":
+            end_date = df['Fecha'].max().date()
+            start_date = end_date - timedelta(days=7)
+        elif date_option == "Último Mes":
+            end_date = df['Fecha'].max().date()
+            start_date = end_date - timedelta(days=30)
+        elif date_option == "Todo el Período":
+            start_date = df['Fecha'].min().date()
+            end_date = df['Fecha'].max().date()
+        else:
+            start_date = df['Fecha'].min().date()
+            end_date = df['Fecha'].max().date()
+
+        date_range = st.date_input(
+            TRANSLATIONS[lang_code]['date_range'],
+            [start_date, end_date],
+            min_value=df['Fecha'].min().date(),
+            max_value=df['Fecha'].max().date(),
+            key="date_range"
+        )
+
+    with st.sidebar.expander("Filtros de Categorías"):
+        product_types = ['Todos'] + sorted(df['Líneas de la orden'].dropna().astype(str).unique().tolist())
+        selected_product = st.selectbox(TRANSLATIONS[lang_code]['product_type'], product_types, key="product")
+        
+        client_groups = ['Todos'] + sorted(df['Cliente/Nombre principal'].dropna().astype(str).unique().tolist())
+        selected_client_grp = st.selectbox(TRANSLATIONS[lang_code]['client_group'], client_groups, key="client_group")
+        
+        days_of_week = ['Todos'] + sorted(df['Día de la Semana'].dropna().astype(str).unique().tolist())
+        selected_day = st.selectbox(TRANSLATIONS[lang_code]['day_of_week'], days_of_week, key="day")
+        
+        clients = ['Todos'] + sorted(df['Cliente/Nombre'].dropna().astype(str).unique().tolist())
+        selected_client = st.selectbox(TRANSLATIONS[lang_code]['specific_client'], clients, key="client")
+
+    if st.sidebar.button(TRANSLATIONS[lang_code]['reset_filters']):
+        st.experimental_rerun()
+
     # Aplicar filtros
     filtered_df = df.copy()
     if len(date_range) == 2:
@@ -202,80 +342,104 @@ else:
         filtered_df = filtered_df[filtered_df['Día de la Semana'] == selected_day]
     if selected_client != 'Todos':
         filtered_df = filtered_df[filtered_df['Cliente/Nombre'] == selected_client]
-    
+
+    # Panel de métricas principales
+    st.subheader(TRANSLATIONS[lang_code]['metrics_summary'])
+    col1, col2, col3, col4 = st.columns(4)
+    total_orders = df['Número de recibo'].nunique()
+    total_commission = df['Comision'].sum()
+    total_cuentas_cobrar_aseavna = df['Cuentas por a cobrar aseavna'].sum()
+    total_cuentas_cobrar_avna = df['Cuentas por a Cobrar Avna'].sum()
+
+    with col1:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric(TRANSLATIONS[lang_code]['orders'], f"{total_orders:,}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric(TRANSLATIONS[lang_code]['commission'], f"₡{total_commission:,.2f}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric(TRANSLATIONS[lang_code]['accounts_aseavna'], f"₡{total_cuentas_cobrar_aseavna:,.2f}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col4:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric(TRANSLATIONS[lang_code]['accounts_avna'], f"₡{total_cuentas_cobrar_avna:,.2f}")
+        st.markdown('</div>', unsafe_allow_html=True)
+
     # Crear pestañas
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-        "Métricas Generales",
-        "Almuerzos Duplicados",
-        "Ventas por Cliente",
-        "Análisis Predictivo",
-        "Visualizaciones",
-        "Exportar Resumen",
-        "Datos Crudos"
+        TRANSLATIONS[lang_code]['metrics'],
+        TRANSLATIONS[lang_code]['duplicates'],
+        TRANSLATIONS[lang_code]['client_sales'],
+        TRANSLATIONS[lang_code]['predictive'],
+        TRANSLATIONS[lang_code]['visualizations'],
+        TRANSLATIONS[lang_code]['export'],
+        TRANSLATIONS[lang_code]['raw_data']
     ])
-    
+
     # Tab 1: Métricas Generales
     with tab1:
-        st.header("Métricas Generales")
-        col1, col2, col3, col4 = st.columns(4)
-        total_orders = df['Número de recibo'].nunique()
-        total_commission = df['Comision'].sum()
-        total_cuentas_cobrar_aseavna = df['Cuentas por a cobrar aseavna'].sum()
-        total_cuentas_cobrar_avna = df['Cuentas por a Cobrar Avna'].sum()
-        
+        st.header(TRANSLATIONS[lang_code]['metrics'])
+        most_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmax() if not filtered_df.empty else "N/A"
+        col1, col2 = st.columns(2)
         with col1:
             st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-            st.metric("Número de Órdenes", f"{total_orders:,}")
+            st.metric(TRANSLATIONS[lang_code]['top_product'], most_sold)
             st.markdown('</div>', unsafe_allow_html=True)
         with col2:
             st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-            st.metric("Comisión Total", f"₡{total_commission:,.2f}")
+            st.metric(TRANSLATIONS[lang_code]['unique_clients'], len(filtered_df['Cliente/Nombre'].unique()))
             st.markdown('</div>', unsafe_allow_html=True)
-        with col3:
-            st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-            st.metric("Ctas. por Cobrar Aseavna", f"₡{total_cuentas_cobrar_aseavna:,.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
-        with col4:
-            st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-            st.metric("Ctas. por Cobrar Avna", f"₡{total_cuentas_cobrar_avna:,.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
-    
+        
+        daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index()
+        fig_summary = px.line(
+            daily_summary, x='Fecha', y='Total',
+            labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
+            title=TRANSLATIONS[lang_code]['daily_sales'],
+            template="plotly_white",
+            color_discrete_sequence=["#4CAF50"]
+        )
+        st.plotly_chart(fig_summary, use_container_width=True)
+
     # Tab 2: Verificación de Almuerzos Ejecutivos Duplicados
     with tab2:
-        st.header("Verificación de Almuerzos Ejecutivos Duplicados")
+        st.header(TRANSLATIONS[lang_code]['duplicates'])
         lunch_df = filtered_df[filtered_df['Líneas de la orden'] == 'Almuerzo Ejecutivo Aseavna'].copy()
         lunch_df['Fecha_Dia'] = lunch_df['Fecha'].dt.date
         dup = lunch_df.groupby(['Cliente/Nombre', 'Fecha_Dia']).filter(lambda x: len(x) > 1)
         
         if not dup.empty:
-            st.markdown('<div class="alert-box">⚠️ Se detectaron almuerzos ejecutivos duplicados:</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="alert-box">{TRANSLATIONS[lang_code]["duplicates_detected"]}</div>', unsafe_allow_html=True)
+            st.balloons()
             summary = dup.groupby(['Cliente/Nombre', 'Fecha_Dia']).size().reset_index(name='Cantidad')
             st.dataframe(summary)
             st.subheader("Detalles de Duplicados")
             st.dataframe(dup[['Cliente/Nombre', 'Fecha', 'Número de recibo', 'Líneas de la orden']])
             c1, c2 = st.columns(2)
             with c1:
-                buf_xl = generate_excel(dup, "Duplicados")
+                buf_xl = generate_excel(dup, "Duplicados", dup.to_string())
                 st.download_button(
-                    "Descargar Duplicados (Excel)",
+                    TRANSLATIONS[lang_code]['download_excel'],
                     data=buf_xl,
                     file_name="almuerzos_duplicados.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
             with c2:
-                buf_pdf = generate_pdf(dup, "Reporte de Almuerzos Duplicados", "almuerzos_duplicados.pdf")
+                buf_pdf = generate_pdf(dup, "Reporte de Almuerzos Duplicados", "almuerzos_duplicados.pdf", dup.to_string())
                 st.download_button(
-                    "Descargar Duplicados (PDF)",
+                    TRANSLATIONS[lang_code]['download_pdf'],
                     data=buf_pdf,
                     file_name="almuerzos_duplicados.pdf",
                     mime="application/pdf"
                 )
         else:
-            st.success("✅ No se detectaron almuerzos ejecutivos duplicados en el mismo día.")
-    
+            st.success(TRANSLATIONS[lang_code]['no_duplicates'])
+
     # Tab 3: Análisis de Ventas por Cliente
     with tab3:
-        st.header("Análisis de Ventas por Cliente")
+        st.header(TRANSLATIONS[lang_code]['client_sales'])
         client_sales = filtered_df.groupby('Cliente/Nombre').agg({
             'Total': 'sum',
             'Número de recibo': 'nunique',
@@ -294,125 +458,154 @@ else:
             'Producto Más Comprado'
         ]
         
-        # Clientes con compras inusuales
         avg_client_sales = client_sales['Ventas Totales (₡)'].mean()
         unusual = client_sales[client_sales['Ventas Totales (₡)'] > avg_client_sales * 2]
         if not unusual.empty:
-            st.markdown('<div class="alert-box">⚠️ Clientes con volumen de compras inusual:</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="alert-box" style="background-color: {CONFIG["colors"]["warning"]}; color: black;">{TRANSLATIONS[lang_code]["unusual_sales"]}</div>', unsafe_allow_html=True)
             st.dataframe(unusual[['Cliente', 'Ventas Totales (₡)']])
         
         st.dataframe(client_sales)
         
-        # Exportar reporte por cliente
-        st.subheader("Exportar Reporte de Ventas por Cliente")
+        st.subheader(TRANSLATIONS[lang_code]['export_client_sales'])
         c1, c2, c3 = st.columns(3)
         with c1:
             csv_bytes = client_sales.to_csv(index=False).encode('utf-8')
             st.download_button(
-                "Descargar CSV",
+                TRANSLATIONS[lang_code]['download_csv'],
                 data=csv_bytes,
                 file_name="ventas_por_cliente.csv",
                 mime="text/csv"
             )
         with c2:
-            buf_xl2 = generate_excel(client_sales, "Ventas por Cliente")
+            buf_xl2 = generate_excel(client_sales, "Ventas por Cliente", client_sales.to_string())
             st.download_button(
-                "Descargar Excel",
+                TRANSLATIONS[lang_code]['download_excel_client'],
                 data=buf_xl2,
                 file_name="ventas_por_cliente.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         with c3:
-            buf_pdf2 = generate_pdf(client_sales, "Reporte de Ventas por Cliente - ASEAVNA", "ventas_por_cliente.pdf")
+            buf_pdf2 = generate_pdf(client_sales, "Reporte de Ventas por Cliente - ASEAVNA", "ventas_por_cliente.pdf", client_sales.to_string())
             st.download_button(
-                "Descargar PDF",
+                TRANSLATIONS[lang_code]['download_pdf_client'],
                 data=buf_pdf2,
                 file_name="ventas_por_cliente.pdf",
                 mime="application/pdf"
             )
-    
+
     # Tab 4: Análisis Predictivo
     with tab4:
-        st.header("Análisis Predictivo")
-        daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index(name='Total')
-        daily['Days'] = (pd.to_datetime(daily['Fecha']) - pd.to_datetime(daily['Fecha'].min())).dt.days
-        
-        if len(daily) > 1:
-            X = daily[['Days']]
-            y = daily['Total']
-            model = LinearRegression().fit(X, y)
+        st.header(TRANSLATIONS[lang_code]['predictive'])
+        try:
+            daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index(name='Total')
+            daily['Days'] = (pd.to_datetime(daily['Fecha']) - pd.to_datetime(daily['Fecha'].min())).dt.days
             
-            future_X = np.array([X['Days'].iloc[-1] + i for i in range(1, 8)]).reshape(-1, 1)
-            preds = model.predict(future_X)
-            future_dates = [pd.to_datetime(daily['Fecha']).max() + timedelta(days=i) for i in range(1, 8)]
-            
-            pred_df = pd.DataFrame({
-                'Fecha': future_dates,
-                'Total': preds,
-                'Tipo': 'Predicción'
-            })
-            hist_df = pd.DataFrame({
-                'Fecha': pd.to_datetime(daily['Fecha']),
-                'Total': daily['Total'],
-                'Tipo': 'Histórico'
-            })
-            combined = pd.concat([hist_df, pred_df])
-            
-            st.subheader("Predicción de Ventas para los Próximos 7 Días")
-            fig_pred = px.line(
-                combined, x='Fecha', y='Total', color='Tipo',
-                labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
-                title="Tendencia Histórica y Predicción de Ventas"
-            )
-            st.plotly_chart(fig_pred, use_container_width=True)
-            
-            # Crecimiento mensual productos
-            trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total'].sum().unstack(fill_value=0)
-            
-            if trends.shape[1] >= 2:
-                growth = ((trends.iloc[:, -1] - trends.iloc[:, -2]) / trends.iloc[:, -2].replace(0, np.nan) * 100).replace([np.inf, -np.inf], 0).dropna().sort_values(ascending=False)
-                top5 = growth.head(5).reset_index()
-                top5.columns = ['Producto', 'Crecimiento (%)']
-                st.subheader("Productos con Potencial de Crecimiento")
-                st.dataframe(top5)
+            if len(daily) > 1:
+                X = sm.add_constant(daily['Days'])
+                model = sm.OLS(daily['Total'], X).fit()
+                future_days = np.array([daily['Days'].iloc[-1] + i for i in range(1, 8)])
+                future_X = sm.add_constant(future_days)
+                preds = model.predict(future_X)
+                conf_int = model.get_prediction(future_X).conf_int()
+                
+                pred_df = pd.DataFrame({
+                    'Fecha': [pd.to_datetime(daily['Fecha']).max() + timedelta(days=i) for i in range(1, 8)],
+                    'Total': preds,
+                    'Lower': conf_int[:, 0],
+                    'Upper': conf_int[:, 1],
+                    'Tipo': 'Predicción'
+                })
+                hist_df = pd.DataFrame({
+                    'Fecha': pd.to_datetime(daily['Fecha']),
+                    'Total': daily['Total'],
+                    'Tipo': 'Histórico'
+                })
+                combined = pd.concat([hist_df, pred_df])
+                
+                st.subheader(TRANSLATIONS[lang_code]['predictive_subheader'])
+                fig_pred = px.line(
+                    combined, x='Fecha', y='Total', color='Tipo',
+                    labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
+                    title="Tendencia Histórica y Predicción de Ventas con Intervalos de Confianza",
+                    template="plotly_white",
+                    color_discrete_sequence=["#4CAF50", "#FF5733"]
+                )
+                fig_pred.add_scatter(
+                    x=pred_df['Fecha'], y=pred_df['Upper'], mode='lines', line=dict(dash='dash', color='gray'), name='Límite Superior'
+                )
+                fig_pred.add_scatter(
+                    x=pred_df['Fecha'], y=pred_df['Lower'], mode='lines', line=dict(dash='dash', color='gray'), name='Límite Inferior'
+                )
+                fig_pred.update_layout(
+                    xaxis_title_font_size=14,
+                    yaxis_title_font_size=14,
+                    title_x=0.5
+                )
+                st.plotly_chart(fig_pred, use_container_width=True)
+                
+                trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total'].sum().unstack(fill_value=0)
+                if trends.shape[1] >= 2:
+                    growth = ((trends.iloc[:, -1] - trends.iloc[:, -2]) / trends.iloc[:, -2].replace(0, np.nan) * 100).replace([np.inf, -np.inf], 0).dropna().sort_values(ascending=False)
+                    top5 = growth.head(5).reset_index()
+                    top5.columns = ['Producto', 'Crecimiento (%)']
+                    st.subheader(TRANSLATIONS[lang_code]['growth_subheader'])
+                    st.dataframe(top5)
+                else:
+                    st.warning(TRANSLATIONS[lang_code]['no_monthly_data'])
             else:
-                st.warning("No hay suficientes datos mensuales para calcular el crecimiento de productos (se requieren al menos dos meses).")
-        else:
-            st.warning("No hay suficientes datos históricos para predicción.")
-    
+                st.warning(TRANSLATIONS[lang_code]['no_predictive_data'])
+        except Exception as e:
+            st.error(TRANSLATIONS[lang_code]['predictive_error'].format(error=str(e)))
+
     # Tab 5: Visualizaciones Detalladas
     with tab5:
-        st.header("Visualizaciones Detalladas")
-        # Top 10 productos
+        st.header(TRANSLATIONS[lang_code]['visualizations'])
         top10 = filtered_df.groupby('Líneas de la orden')['Total'].sum().nlargest(10).reset_index()
         fig1 = px.bar(
             top10, x='Líneas de la orden', y='Total',
-            title="Top 10 Productos por Ventas",
-            labels={'Total': 'Ventas (₡)', 'Líneas de la orden': 'Producto'}
+            title=TRANSLATIONS[lang_code]['top_products'],
+            labels={'Total': 'Ventas (₡)', 'Líneas de la orden': 'Producto'},
+            template="plotly_white",
+            color_discrete_sequence=["#4CAF50"],
+            hover_data={'Total': ':,.2f'}
         )
-        fig1.update_layout(xaxis_tickangle=45)
+        fig1.update_layout(
+            xaxis_tickangle=45,
+            xaxis_title_font_size=14,
+            yaxis_title_font_size=14,
+            title_x=0.5,
+            margin=dict(l=40, r=40, t=80, b=100)
+        )
         st.plotly_chart(fig1, use_container_width=True)
         
-        # Tendencia diaria
         fig2 = px.line(
             x=pd.to_datetime(daily['Fecha']),
             y=daily['Total'],
             labels={'x': 'Fecha', 'y': 'Ventas (₡)'},
-            title="Tendencia Diaria de Ventas"
+            title=TRANSLATIONS[lang_code]['daily_trend'],
+            template="plotly_white",
+            color_discrete_sequence=["#4CAF50"]
+        )
+        fig2.update_layout(
+            xaxis_title_font_size=14,
+            yaxis_title_font_size=14,
+            title_x=0.5
         )
         st.plotly_chart(fig2, use_container_width=True)
         
-        # Pie de ventas por grupo
         grp = filtered_df.groupby('Cliente/Nombre principal')['Total'].sum().reset_index()
         fig3 = px.pie(
             grp, names='Cliente/Nombre principal', values='Total',
-            title="Ventas por Grupo de Clientes"
+            title=TRANSLATIONS[lang_code]['sales_by_group'],
+            template="plotly_white",
+            color_discrete_sequence=px.colors.sequential.Viridis
         )
+        fig3.update_layout(title_x=0.5)
         st.plotly_chart(fig3, use_container_width=True)
-    
+
     # Tab 6: Resumen de Métricas para Exportar
     with tab6:
-        st.header("Exportar Resumen de Métricas")
+        st.header(TRANSLATIONS[lang_code]['export'])
         most_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmax() if not filtered_df.empty else "N/A"
         least_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmin() if not filtered_df.empty else "N/A"
         
@@ -429,34 +622,34 @@ else:
         c1, c2, c3 = st.columns(3)
         with c1:
             st.download_button(
-                "Descargar Resumen (CSV)",
+                TRANSLATIONS[lang_code]['download_summary_csv'],
                 data=report_df.to_csv(index=False).encode('utf-8'),
                 file_name="resumen_ventas_aseavna.csv",
                 mime="text/csv"
             )
         with c2:
-            buf_xl3 = generate_excel(report_df, "Resumen")
+            buf_xl3 = generate_excel(report_df, "Resumen", report_df.to_string())
             st.download_button(
-                "Descargar Resumen (Excel)",
+                TRANSLATIONS[lang_code]['download_summary_excel'],
                 data=buf_xl3,
                 file_name="resumen_ventas_aseavna.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         with c3:
-            buf_pdf3 = generate_pdf(report_df, "Resumen de Ventas - ASEAVNA", "resumen_ventas_aseavna.pdf")
+            buf_pdf3 = generate_pdf(report_df, "Res abe255b5-9f3e-4c7d-962c-01f373a4bffcumen de Ventas - ASEAVNA", "resumen_ventas_aseavna.pdf", report_df.to_string())
             st.download_button(
-                "Descargar Resumen (PDF)",
+                TRANSLATIONS[lang_code]['download_summary_pdf'],
                 data=buf_pdf3,
                 file_name="resumen_ventas_aseavna.pdf",
                 mime="application/pdf"
             )
-    
+
     # Tab 7: Datos Crudos
     with tab7:
-        st.header("Datos Crudos")
-        if st.checkbox("Mostrar Datos Crudos"):
+        st.header(TRANSLATIONS[lang_code]['raw_data'])
+        if st.checkbox(TRANSLATIONS[lang_code]['show_raw_data']):
             st.dataframe(filtered_df)
-    
-    # Pie de página
-    st.markdown("---")
-    st.markdown("Desarrollado por Wilfredos para ASEAVNA | Fuente de Datos: Órdenes del Punto de Venta (POS) | 2025")
+
+# Pie de página
+st.markdown("---")
+st.markdown(TRANSLATIONS[lang_code]['footer'])
