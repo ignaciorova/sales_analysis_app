@@ -168,7 +168,7 @@ CONFIG = {
         'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
     },
     'styles': {
-        'metric_box': 'border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%; display: flex; flex-direction: column; justify-content: center; align-items: center;',
+        'metric_box': 'border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; min-width: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center;',
         'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; text-align: center; width: 90%;'
     },
     'colors': {
@@ -182,7 +182,7 @@ CONFIG = {
 TRANSLATIONS = {
     'es': {
         'title': '📊 Dashboard de Análisis de Ventas - ASEAVNA',
-        'description': 'Análisis de órdenes de venta del sistema POS.',
+        'description': 'Análisis avanzado de órdenes de venta del sistema POS, con métricas, predicciones y reportes descargables por cliente.',
         'filters_header': 'Filtros de Análisis',
         'date_range': 'Rango de Fechas',
         'select_period': 'Seleccionar Período',
@@ -293,18 +293,43 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilo personalizado
+# Estilo personalizado con responsividad
 st.markdown(f"""
 <style>
 .main {{background-color: #f5f7fa; padding: 10px;}}
 .stButton>button {{background-color: {CONFIG['colors']['primary']}; color: white; border-radius: 5px;}}
 .stSidebar {{background-color: #e8ecef; padding: 5px;}}
 h1, h2, h3 {{color: {CONFIG['colors']['secondary']}; text-align: center;}}
-.metric-box {{border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%; display: flex; flex-direction: column; justify-content: center; align-items: center;}}
+.metric-box {{border: 1px solid #d3d3d3; padding: 8px; border-radius: 5px; background-color: white; margin: 5px; text-align: center; min-width: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center;}}
 .metric-box .title {{font-size: 10px; color: {CONFIG['colors']['primary']}; margin-bottom: 2px;}}
-.metric-box .value {{font-size: 12px;}}
+.metric-box .value {{font-size: 12px; word-wrap: break-word; white-space: normal;}}
 .alert-box {{background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; text-align: center; width: 90%;}}
 .logo-container {{text-align: center; margin: 10px 0;}}
+/* Contenedor de métricas responsivo */
+.metrics-container {{display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;}}
+/* Tablas con desplazamiento horizontal en móviles */
+.stDataFrame {{overflow-x: auto;}}
+/* Ajustes responsivos */
+@media (max-width: 768px) {{
+    .metric-box .title {{font-size: 8px;}}
+    .metric-box .value {{font-size: 10px;}}
+    .metric-box {{min-width: 120px; padding: 5px;}}
+    h1 {{font-size: 1.5rem;}}
+    h2 {{font-size: 1.2rem;}}
+    h3 {{font-size: 1rem;}}
+    .main {{padding: 5px;}}
+    .stSidebar {{padding: 3px;}}
+    .stButton>button {{font-size: 12px; padding: 5px 10px;}}
+    .stDataFrame {{font-size: 12px;}}
+}}
+@media (max-width: 480px) {{
+    .metric-box {{min-width: 100%; margin: 5px 0;}}
+    .metrics-container {{flex-direction: column; align-items: center;}}
+    h1 {{font-size: 1.2rem;}}
+    h2 {{font-size: 1rem;}}
+    h3 {{font-size: 0.9rem;}}
+    .stButton>button {{font-size: 10px; padding: 4px 8px;}}
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -316,7 +341,7 @@ lang_code = 'es' if language == "Español" else 'en'
 st.markdown('<div class="logo-container">', unsafe_allow_html=True)
 try:
     if os.path.exists("app/data/logo.png"):
-        st.image("app/data/logo.png", use_container_width=False, width=200)
+        st.image("app/data/logo.png", use_container_width=False, width=150)
     else:
         st.warning("El archivo 'logo.png' no se encuentra en app/data/. Por favor, asegúrese de que el archivo esté en la ruta correcta.")
 except Exception as e:
@@ -421,23 +446,20 @@ else:
 
     # Panel de métricas principales
     st.subheader(TRANSLATIONS[lang_code]['metrics_summary'])
-    col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
     total_orders = filtered_df['Número de recibo'].nunique()
     total_lines_filtered = len(filtered_df)
     total_commission = filtered_df['Comision Aseavna'].sum()
     total_cuentas_cobrar_aseavna = filtered_df['Cuentas por a cobrar aseavna'].sum()
     total_cuentas_cobrar_avna = filtered_df['Cuentas por a Cobrar Avna'].sum()
 
-    with col1:
-        st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["orders"]}</span><span class="value">{total_orders:,}</span></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["lines"]}</span><span class="value">{total_lines_filtered:,}</span></div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["commission"]}</span><span class="value">₡{total_commission:,.2f}</span></div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["accounts_aseavna"]}</span><span class="value">₡{total_cuentas_cobrar_aseavna:,.2f}</span></div>', unsafe_allow_html=True)
-    with col5:
-        st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["accounts_avna"]}</span><span class="value">₡{total_cuentas_cobrar_avna:,.2f}</span></div>', unsafe_allow_html=True)
+    # Usar un contenedor flexible para las métricas
+    st.markdown('<div class="metrics-container">', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["orders"]}</span><span class="value">{total_orders:,}</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["lines"]}</span><span class="value">{total_lines_filtered:,}</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["commission"]}</span><span class="value">₡{total_commission:,.2f}</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["accounts_aseavna"]}</span><span class="value">₡{total_cuentas_cobrar_aseavna:,.2f}</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["accounts_avna"]}</span><span class="value">₡{total_cuentas_cobrar_avna:,.2f}</span></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Crear pestañas
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
@@ -454,7 +476,7 @@ else:
     with tab1:
         st.header(TRANSLATIONS[lang_code]['metrics'])
         most_sold = filtered_df.groupby('Líneas de la orden')['Total Final'].sum().idxmax() if not filtered_df.empty else "N/A"
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns([1, 1])
         with col1:
             st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["top_product"]}</span><span class="value">{most_sold}</span></div>', unsafe_allow_html=True)
         with col2:
@@ -470,10 +492,12 @@ else:
                 color_discrete_sequence=["#4CAF50"]
             )
             fig_summary.update_layout(
-                margin=dict(l=20, r=20, t=60, b=20),
-                xaxis_title_font_size=14,
-                yaxis_title_font_size=14,
-                title_x=0.5
+                margin=dict(l=10, r=10, t=50, b=10),
+                xaxis_title_font_size=12,
+                yaxis_title_font_size=12,
+                title_x=0.5,
+                font=dict(size=10),
+                height=400
             )
             st.plotly_chart(fig_summary, use_container_width=True)
         else:
@@ -560,7 +584,7 @@ else:
         st.dataframe(client_sales_display)
         
         st.subheader(TRANSLATIONS[lang_code]['export_client_sales'])
-        c1, c2, c3 = st.columns(3)
+        c1, c2, c3 = st.columns([1, 1, 1])
         with c1:
             csv_bytes = client_sales.to_csv(index=False).encode('utf-8')
             st.download_button(
@@ -590,20 +614,16 @@ else:
     with tab4:
         st.header(TRANSLATIONS[lang_code]['predictive'])
         try:
-            # Agrupar por fecha para obtener los ingresos totales diarios (Total Final)
             daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total Final'].sum().reset_index(name='Total')
             daily['Days'] = (pd.to_datetime(daily['Fecha']) - pd.to_datetime(daily['Fecha'].min())).dt.days
             
-            # Validar que haya suficientes datos para la predicción
             if len(daily) < 2:
                 st.warning(TRANSLATIONS[lang_code]['no_predictive_data'])
             else:
-                # Asegurar que no haya valores nulos en 'Total'
                 daily = daily.dropna(subset=['Total'])
                 if daily.empty:
                     st.warning("No hay datos válidos para realizar la predicción.")
                 else:
-                    # Modelo de regresión lineal para predecir ingresos futuros
                     X = sm.add_constant(daily['Days'])
                     model = sm.OLS(daily['Total'], X).fit()
                     future_days = np.array([daily['Days'].iloc[-1] + i for i in range(1, 8)])
@@ -611,12 +631,11 @@ else:
                     preds = model.predict(future_X)
                     conf_int = model.get_prediction(future_X).conf_int()
                     
-                    # Crear DataFrame de predicciones con intervalos de confianza
                     pred_df = pd.DataFrame({
                         'Fecha': [pd.to_datetime(daily['Fecha']).max() + timedelta(days=i) for i in range(1, 8)],
                         'Total': preds,
-                        'Lower': np.maximum(conf_int[:, 0], 0),  # Evitar valores negativos
-                        'Upper': np.maximum(conf_int[:, 1], 0),  # Evitar valores negativos
+                        'Lower': np.maximum(conf_int[:, 0], 0),
+                        'Upper': np.maximum(conf_int[:, 1], 0),
                         'Tipo': 'Predicción'
                     })
                     hist_df = pd.DataFrame({
@@ -626,7 +645,6 @@ else:
                     })
                     combined = pd.concat([hist_df, pred_df]).reset_index(drop=True)
                     
-                    # Gráfica de predicción de ingresos
                     st.subheader(TRANSLATIONS[lang_code]['predictive_subheader'])
                     fig_pred = px.line(
                         combined, 
@@ -638,7 +656,6 @@ else:
                         template="plotly_white",
                         color_discrete_sequence=["#4CAF50", "#FF5733"]
                     )
-                    # Añadir intervalos de confianza
                     fig_pred.add_scatter(
                         x=pred_df['Fecha'], 
                         y=pred_df['Upper'], 
@@ -655,31 +672,19 @@ else:
                         name='Límite Inferior',
                         showlegend=True
                     )
-                    # Personalizar el formato del eje Y para mostrar comas
                     fig_pred.update_layout(
-                        margin=dict(l=20, r=20, t=60, b=20),
-                        xaxis_title_font_size=14,
-                        yaxis_title_font_size=14,
+                        margin=dict(l=10, r=10, t=50, b=10),
+                        xaxis_title_font_size=12,
+                        yaxis_title_font_size=12,
                         title_x=0.5,
-                        yaxis=dict(
-                            tickformat=",.0f",  # Formato con comas para miles
-                            gridcolor='lightgray'
-                        ),
-                        xaxis=dict(
-                            tickformat="%Y-%m-%d",
-                            gridcolor='lightgray'
-                        ),
-                        legend=dict(
-                            orientation="h",
-                            yanchor="bottom",
-                            y=-0.3,
-                            xanchor="center",
-                            x=0.5
-                        )
+                        yaxis=dict(tickformat=",.0f", gridcolor='lightgray'),
+                        xaxis=dict(tickformat="%Y-%m-%d", gridcolor='lightgray'),
+                        legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
+                        font=dict(size=10),
+                        height=400
                     )
                     st.plotly_chart(fig_pred, use_container_width=True)
                     
-                    # Análisis de crecimiento de productos basado en ingresos (Total Final)
                     trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total Final'].sum().unstack(fill_value=0)
                     if trends.shape[1] >= 2:
                         growth = ((trends.iloc[:, -1] - trends.iloc[:, -2]) / trends.iloc[:, -2].replace(0, np.nan) * 100).replace([np.inf, -np.inf], 0).dropna().sort_values(ascending=False)
@@ -713,14 +718,16 @@ else:
                 hover_data={'Total Final': ':,.2f'}
             )
             fig1.update_layout(
-                margin=dict(l=40, r=40, t=80, b=100),
+                margin=dict(l=20, r=20, t=50, b=80),
                 xaxis_tickangle=45,
-                xaxis_title_font_size=14,
-                yaxis_title_font_size=14,
+                xaxis_title_font_size=12,
+                yaxis_title_font_size=12,
                 title_x=0.5,
                 showlegend=False,
                 xaxis=dict(tickmode='linear'),
-                yaxis=dict(gridcolor='lightgray')
+                yaxis=dict(gridcolor='lightgray'),
+                font=dict(size=10),
+                height=400
             )
             st.plotly_chart(fig1, use_container_width=True)
         else:
@@ -739,12 +746,14 @@ else:
                 markers=True
             )
             fig2.update_layout(
-                margin=dict(l=40, r=40, t=80, b=40),
-                xaxis_title_font_size=14,
-                yaxis_title_font_size=14,
+                margin=dict(l=20, r=20, t=50, b=20),
+                xaxis_title_font_size=12,
+                yaxis_title_font_size=12,
                 title_x=0.5,
                 xaxis=dict(tickformat="%Y-%m-%d", gridcolor='lightgray'),
-                yaxis=dict(gridcolor='lightgray')
+                yaxis=dict(gridcolor='lightgray'),
+                font=dict(size=10),
+                height=400
             )
             st.plotly_chart(fig2, use_container_width=True)
         else:
@@ -752,7 +761,6 @@ else:
 
         grp = viz_df.groupby('Cliente/Nombre principal')['Total Final'].sum().reset_index()
         if not grp.empty and grp['Total Final'].sum() > 0:
-            # Limitar a los 10 grupos con mayores ingresos
             grp = grp.nlargest(10, 'Total Final')
             fig3 = px.pie(
                 grp, 
@@ -762,26 +770,20 @@ else:
                 template="plotly_white",
                 color_discrete_sequence=px.colors.sequential.Viridis
             )
-            # Ajustar el espaciado y las etiquetas para evitar superposición y moverlas a los lados
             fig3.update_traces(
                 textinfo='percent+label',
-                pull=[0.1 if i == 0 else 0 for i in range(len(grp))],  # Separar ligeramente la primera sección
-                textposition='auto',  # Permitir que Plotly ajuste automáticamente la posición (izquierda/derecha)
-                textfont=dict(size=10),  # Reducir tamaño de fuente para mejor ajuste
-                insidetextorientation='radial'  # Asegurar que el texto no interfiera con el círculo
+                pull=[0.1 if i == 0 else 0 for i in range(len(grp))],
+                textposition='auto',
+                textfont=dict(size=10),
+                insidetextorientation='radial'
             )
             fig3.update_layout(
-                margin=dict(l=100, r=100, t=80, b=100),  # Aumentar márgenes laterales para dar espacio a etiquetas
+                margin=dict(l=80, r=80, t=50, b=80),
                 title_x=0.5,
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=-0.3,
-                    xanchor="center",
-                    x=0.5
-                ),
-                height=600,
-                width=1000  # Aumentar ancho para dar más espacio lateral
+                legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
+                font=dict(size=10),
+                height=400,
+                width=None
             )
             st.plotly_chart(fig3, use_container_width=True)
         else:
@@ -804,7 +806,7 @@ else:
             "Producto Menos Vendido": least_sold
         }
         report_df = pd.DataFrame([report])
-        c1, c2, c3 = st.columns(3)
+        c1, c2, c3 = st.columns([1, 1, 1])
         with c1:
             st.download_button(
                 TRANSLATIONS[lang_code]['download_summary_csv'],
