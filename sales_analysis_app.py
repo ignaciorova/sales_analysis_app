@@ -14,9 +14,14 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from streamlit_authenticator import Authenticate
-import streamlit.components.v1 as components
 from streamlit_aggrid import AgGrid, GridOptionsBuilder
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
+EMAIL_FROM = os.getenv("EMAIL_FROM")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
 # Configuración de la página
 st.set_page_config(
@@ -57,21 +62,28 @@ name, authentication_status = authenticator.login("Iniciar Sesión", "main")
 
 if authentication_status:
     st.sidebar.success(f"Bienvenido, {name}")
-    # Cargar logo (ajústalos la ruta según tu archivo)
-    logo_path = "app/assets/logo.png"
-    if os.path.exists(logo_path):
-        st.sidebar.image(logo_path, width=200)
+    # Cargar logo
+    logo_path = Path("app/assets/logo.png")
+    if logo_path.exists():
+        st.sidebar.image(str(logo_path), width=200)
+    else:
+        st.sidebar.warning("Logo no encontrado en app/assets/logo.png")
 
     @st.cache_data
     def load_data():
         try:
-            df = pd.read_excel("app/data/Órdenes del punto de venta (pos.order).xlsx", engine='openpyxl')
-            
+            data_path = Path("app/data/Orders_pos.xlsx")
+            if not data_path.exists():
+                st.error(f"Archivo no encontrado: {data_path}")
+                return pd.DataFrame()
+            df = pd.read_excel(data_path, engine='openpyxl')
+            st.write("Columnas cargadas:", df.columns.tolist())  # Depuración
+
             if pd.api.types.is_numeric_dtype(df['Fecha']):
                 df['Fecha'] = pd.to_datetime(df['Fecha'], unit='D', origin='1899-12-30') - timedelta(days=2)
             else:
                 df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
-            
+
             df_columns = {col.strip().lower(): col for col in df.columns}
             column_mapping = {
                 'Cliente/Código de barras': 'cliente/código de barras',
@@ -87,14 +99,14 @@ if authentication_status:
                 'Líneas de la orden': 'líneas de la orden',
                 'Líneas de la orden/Cantidad': 'líneas de la orden/cantidad'
             }
-            
+
             for expected_col, search_col in column_mapping.items():
                 found_col = next((col for col_name, col in df_columns.items() if col_name == search_col.strip().lower()), None)
                 if found_col:
                     df[expected_col] = df[found_col]
                 else:
                     df[expected_col] = 'Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0
-            
+
             df['Cliente/Código de barras'] = df['Cliente/Código de barras'].fillna('Desconocido')
             df['Cliente/Nombre'] = df['Cliente/Nombre'].fillna('Desconocido')
             df['Centro de Costos Aseavna'] = df['Centro de Costos Aseavna'].fillna('Desconocido')
@@ -105,14 +117,14 @@ if authentication_status:
             df['Comision'] = pd.to_numeric(df['Comision'], errors='coerce').fillna(0)
             df['Cuentas por a cobrar aseavna'] = pd.to_numeric(df['Cuentas por a cobrar aseavna'], errors='coerce').fillna(0)
             df['Cuentas por a Cobrar Avna'] = pd.to_numeric(df['Cuentas por a Cobrar Avna'], errors='coerce').fillna(0)
-            
+
             df['Día de la Semana'] = df['Fecha'].dt.day_name()
             day_translation = {
                 'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
                 'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
             }
             df['Día de la Semana'] = df['Día de la Semana'].map(day_translation).fillna(df['Día de la Semana'])
-            
+
             return df
         except Exception as e:
             st.error(f"Error al cargar los datos: {e}")
@@ -156,23 +168,27 @@ if authentication_status:
         return buffer
 
     def send_alert(email_to, subject, message):
-        email_from = "ignaciorova@gmail.com"  # Reemplaza con tu correo
-        password = "33502600"    # Usa una contraseña de aplicación
+        if not EMAIL_FROM or not EMAIL_PASSWORD:
+            st.error("Credenciales de correo no configuradas en .env")
+            return
         msg = MIMEText(message)
         msg['Subject'] = subject
-        msg['From'] = email_from
+        msg['From'] = EMAIL_FROM
         msg['To'] = email_to
-
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.starttls()
-            server.login(email_from, password)
-            server.sendmail(email_from, email_to, msg.as_string())
+        try:
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                server.starttls()
+                server.login(EMAIL_FROM, EMAIL_PASSWORD)
+                server.sendmail(EMAIL_FROM, email_to, msg.as_string())
+            st.success("Correo enviado exitosamente")
+        except Exception as e:
+            st.error(f"Error al enviar correo: {e}")
 
     # Carga de datos automática
     df = load_data()
 
     if df.empty:
-        st.warning("No se encontraron datos. Asegúrese de que el archivo 'Órdenes del punto de venta (pos.order).xlsx' esté disponible en app/data/.")
+        st.warning("No se encontraron datos. Asegúrese de que el archivo 'Orders_pos.xlsx' esté disponible en app/data/.")
     else:
         # Sidebar: filtros avanzados
         st.sidebar.header("Filtros de Análisis")

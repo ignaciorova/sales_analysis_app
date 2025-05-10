@@ -7,3 +7,4 @@ xlsxwriter
 scikit-learn
 streamlit-authenticator
 streamlit-aggrid
+python-dotenv
