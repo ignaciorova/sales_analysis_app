@@ -160,9 +160,8 @@ CONFIG = {
         'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
     },
     'styles': {
-        'metric_box': 'border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%;',
-        'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; width: 90%;',
-        'chart_container': 'display: flex; justify-content: center; align-items: center; width: 100%; padding: 10px;'
+        'metric_box': 'border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center;',
+        'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px 0; color: white; text-align: center;'
     },
     'colors': {
         'primary': '#4CAF50',
@@ -289,18 +288,14 @@ st.set_page_config(
 # Estilo personalizado
 st.markdown(f"""
 <style>
-.main {{background-color: #f5f7fa; padding: 20px;}}
-.stButton>button {{background-color: {CONFIG['colors']['primary']}; color: white; border-radius: 5px; margin: 0 auto; display: block;}}
-.stSidebar {{background-color: #e8ecef; padding: 10px;}}
+.main {{background-color: #f5f7fa; padding: 10px;}}
+.stButton>button {{background-color: {CONFIG['colors']['primary']}; color: white; border-radius: 5px;}}
+.stSidebar {{background-color: #e8ecef; padding: 5px;}}
 h1, h2, h3 {{color: {CONFIG['colors']['secondary']}; text-align: center;}}
 .metric-box {{{CONFIG['styles']['metric_box']}}}
 .alert-box {{{CONFIG['styles']['alert_box']}}}
-.chart-container {{{CONFIG['styles']['chart_container']}}}
 .stMetric {{font-size: 14px; text-align: center;}}
-.logo-container {{text-align: center; margin-bottom: 20px;}}
-.stTabs {{display: flex; justify-content: center;}}
-.stTabs > div {{width: 100%; max-width: 1200px;}}
-.stColumn {{display: flex; justify-content: center; align-items: center;}}
+.logo-container {{text-align: center; margin: 10px 0;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -322,7 +317,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # Título y descripción
 st.title(TRANSLATIONS[lang_code]['title'])
-st.markdown(TRANSLATIONS[lang_code]['description'])
+st.markdown(TRANSLATIONS[lang_code]['description'], unsafe_allow_html=True)
 
 # Carga de datos
 df = load_data()
@@ -414,7 +409,7 @@ else:
 
     # Panel de métricas principales
     st.subheader(TRANSLATIONS[lang_code]['metrics_summary'])
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])  # Espacio equitativo
     total_orders = filtered_df['Número de recibo'].nunique()
     total_lines_filtered = len(filtered_df)
     total_commission = filtered_df['Comision'].sum()
@@ -477,14 +472,12 @@ else:
                 color_discrete_sequence=["#4CAF50"]
             )
             fig_summary.update_layout(
-                margin=dict(l=40, r=40, t=80, b=40),
+                margin=dict(l=20, r=20, t=60, b=20),
                 xaxis_title_font_size=14,
                 yaxis_title_font_size=14,
                 title_x=0.5
             )
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
             st.plotly_chart(fig_summary, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("No hay datos suficientes para mostrar la tendencia diaria.")
 
@@ -622,14 +615,12 @@ else:
                     x=pred_df['Fecha'], y=pred_df['Lower'], mode='lines', line=dict(dash='dash', color='gray'), name='Límite Inferior'
                 )
                 fig_pred.update_layout(
-                    margin=dict(l=40, r=40, t=80, b=40),
+                    margin=dict(l=20, r=20, t=60, b=20),
                     xaxis_title_font_size=14,
                     yaxis_title_font_size=14,
                     title_x=0.5
                 )
-                st.markdown('<div class="chart-container">', unsafe_allow_html=True)
                 st.plotly_chart(fig_pred, use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
                 
                 trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total'].sum().unstack(fill_value=0)
                 if trends.shape[1] >= 2:
@@ -666,15 +657,13 @@ else:
                 hover_data={'Total': ':,.2f'}
             )
             fig1.update_layout(
-                margin=dict(l=40, r=40, t=80, b=100),
+                margin=dict(l=20, r=20, t=60, b=80),
                 xaxis_tickangle=45,
                 xaxis_title_font_size=14,
                 yaxis_title_font_size=14,
                 title_x=0.5
             )
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
             st.plotly_chart(fig1, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("No hay datos suficientes para mostrar los top 10 productos.")
 
@@ -688,14 +677,12 @@ else:
                 color_discrete_sequence=["#4CAF50"]
             )
             fig2.update_layout(
-                margin=dict(l=40, r=40, t=80, b=40),
+                margin=dict(l=20, r=20, t=60, b=20),
                 xaxis_title_font_size=14,
                 yaxis_title_font_size=14,
                 title_x=0.5
             )
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
             st.plotly_chart(fig2, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("No hay datos suficientes para mostrar la tendencia diaria.")
         
@@ -708,12 +695,10 @@ else:
                 color_discrete_sequence=px.colors.sequential.Viridis
             )
             fig3.update_layout(
-                margin=dict(l=40, r=40, t=80, b=40),
+                margin=dict(l=20, r=20, t=60, b=20),
                 title_x=0.5
             )
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
             st.plotly_chart(fig3, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("No hay datos suficientes para mostrar las ventas por grupo de clientes.")
 
