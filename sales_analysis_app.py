@@ -77,20 +77,6 @@ def load_data():
 
     def map_columns(df):
         df_columns = {col.strip().lower(): col for col in df.columns}
-        CONFIG['columns'] = {
-            'Cliente/Código de barras': 'Cliente/Código de barras',
-            'Cliente/Nombre': 'Cliente/Nombre',
-            'Centro de Costos Aseavna': 'Centro de Costos Aseavna',
-            'Fecha': 'Fecha',
-            'Número de recibo': 'Número de recibo',
-            'Cliente/Nombre principal': 'Cliente/Nombre principal',
-            'Precio total colaborador': 'Precio total colaborador',
-            'Comision': 'Comision Aseavna',
-            'Cuentas por a cobrar aseavna': 'Cuentas por a cobrar aseavna',
-            'Cuentas por a Cobrar Avna': 'Cuentas por a Cobrar Avna',
-            'Líneas de la orden': 'Líneas de la orden',
-            'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
-        }
         for expected_col, search_col in CONFIG['columns'].items():
             found_col = next((col for col_name, col in df_columns.items() if col_name == search_col.strip().lower()), None)
             df[expected_col] = df[found_col] if found_col else ('Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0)
@@ -120,10 +106,18 @@ def load_data():
         return df
 
     def add_day_of_week(df):
+        # Convertir fechas con manejo explícito de formatos y errores
         if pd.api.types.is_numeric_dtype(df['Fecha']):
-            df['Fecha'] = pd.to_datetime(df['Fecha'], unit='D', origin='1899-12-30') - timedelta(days=2)
+            df['Fecha'] = pd.to_datetime(df['Fecha'], unit='D', origin='1899-12-30', errors='coerce') - timedelta(days=2)
         else:
             df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+        
+        # Verificar fechas no válidas
+        invalid_dates = df['Fecha'].isna().sum()
+        if invalid_dates > 0:
+            st.warning(f"Se encontraron {invalid_dates} fechas no válidas que se excluirán del análisis.")
+        
+        df = df.dropna(subset=['Fecha'])  # Eliminar filas con fechas no válidas
         df['Día de la Semana'] = df['Fecha'].dt.day_name()
         day_translation = {
             'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
@@ -367,10 +361,17 @@ else:
     filtered_df = df.copy()
     if len(date_range) == 2:
         sd, ed = date_range
+        sd = pd.to_datetime(sd)
+        ed = pd.to_datetime(ed) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)  # Incluir todo el día final
         filtered_df = filtered_df[
-            (filtered_df['Fecha'] >= pd.to_datetime(sd)) &
-            (filtered_df['Fecha'] <= pd.to_datetime(ed))
+            (filtered_df['Fecha'] >= sd) &
+            (filtered_df['Fecha'] <= ed)
         ]
+        # Depuración: mostrar el número de filas después de aplicar el filtro de fechas
+        st.sidebar.write(f"Filas después de filtrar por fechas ({sd.date()} a {ed.date()}): {len(filtered_df)}")
+    else:
+        st.warning("Por favor, selecciona un rango de fechas válido.")
+
     if selected_product != 'Todos':
         filtered_df = filtered_df[filtered_df['Líneas de la orden'] == selected_product]
     if selected_client_grp != 'Todos':
