@@ -752,6 +752,7 @@ else:
 
         grp = viz_df.groupby('Cliente/Nombre principal')['Total Final'].sum().reset_index()
         if not grp.empty and grp['Total Final'].sum() > 0:
+            # Limitar a los 10 grupos con mayores ingresos
             grp = grp.nlargest(10, 'Total Final')
             fig3 = px.pie(
                 grp, 
@@ -761,11 +762,25 @@ else:
                 template="plotly_white",
                 color_discrete_sequence=px.colors.sequential.Viridis
             )
-            fig3.update_traces(textinfo='percent+label', pull=[0.1] + [0] * (len(grp) - 1))
+            # Ajustar el espaciado y las etiquetas para evitar superposición
+            fig3.update_traces(
+                textinfo='percent+label',
+                pull=[0.1 if i == 0 else 0 for i in range(len(grp))],  # Separar ligeramente la primera sección
+                textposition='outside',  # Mover etiquetas fuera del gráfico
+                textfont=dict(size=10)   # Reducir tamaño de fuente para mejor ajuste
+            )
             fig3.update_layout(
                 margin=dict(l=40, r=40, t=80, b=40),
                 title_x=0.5,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.2,
+                    xanchor="center",
+                    x=0.5
+                ),
+                height=600,  # Aumentar altura para dar más espacio
+                width=800    # Aumentar ancho para dar más espacio
             )
             st.plotly_chart(fig3, use_container_width=True)
         else:
