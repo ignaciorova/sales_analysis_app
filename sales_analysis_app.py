@@ -762,25 +762,26 @@ else:
                 template="plotly_white",
                 color_discrete_sequence=px.colors.sequential.Viridis
             )
-            # Ajustar el espaciado y las etiquetas para evitar superposición
+            # Ajustar el espaciado y las etiquetas para evitar superposición y bajarlas más
             fig3.update_traces(
                 textinfo='percent+label',
                 pull=[0.1 if i == 0 else 0 for i in range(len(grp))],  # Separar ligeramente la primera sección
                 textposition='outside',  # Mover etiquetas fuera del gráfico
-                textfont=dict(size=10)   # Reducir tamaño de fuente para mejor ajuste
+                textfont=dict(size=10),  # Reducir tamaño de fuente para mejor ajuste
+                insidetextorientation='radial'  # Asegurar que el texto no interfiera con el círculo
             )
             fig3.update_layout(
-                margin=dict(l=40, r=40, t=80, b=40),
+                margin=dict(l=40, r=40, t=80, b=100),  # Aumentar margen inferior para bajar etiquetas
                 title_x=0.5,
                 legend=dict(
                     orientation="h",
                     yanchor="bottom",
-                    y=-0.2,
+                    y=-0.3,  # Bajar la leyenda para más espacio
                     xanchor="center",
                     x=0.5
                 ),
-                height=600,  # Aumentar altura para dar más espacio
-                width=800    # Aumentar ancho para dar más espacio
+                height=600,  # Mantener altura para dar espacio
+                width=800    # Mantener ancho para dar espacio
             )
             st.plotly_chart(fig3, use_container_width=True)
         else:
