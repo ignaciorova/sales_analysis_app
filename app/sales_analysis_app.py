@@ -42,8 +42,12 @@ def load_data(uploaded_file):
             raise FileNotFoundError("No se ha cargado ningún archivo.")
         df = pd.read_excel(uploaded_file, engine='openpyxl')
         
-        # Mostrar columnas detectadas para depuración
+        # Depuración: Mostrar columnas detectadas
         st.write("Columnas detectadas en el archivo:", df.columns.tolist())
+        
+        # Depuración: Mostrar primeras filas completas
+        st.write("Primeras 5 filas completas del archivo cargado:")
+        st.write(df.head())
         
         # Detectar si 'Fecha' es serial de Excel (numérico) o ya datetime
         if pd.api.types.is_numeric_dtype(df['Fecha']):
@@ -51,28 +55,39 @@ def load_data(uploaded_file):
         else:
             df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
         
-        # Mapeo flexible de columnas
+        # Mapeo flexible de columnas (ignorando mayúsculas/minúsculas y espacios)
+        df_columns = {col.strip().lower(): col for col in df.columns}
         column_mapping = {
-            'Cliente/Código de barras': 'Cliente/Código de barras',
-            'Cliente/Nombre': 'Cliente/Nombre',
-            'Centro de Costos Aseavna': 'Centro de Costos Aseavna',
-            'Fecha': 'Fecha',
-            'Número de recibo': 'Número de recibo',
-            'Cliente/Nombre principal': 'Cliente/Nombre principal',
-            'Total': 'Precio total colaborador',
-            'Comision': 'Comision Aseavna',
-            'Cuentas por a cobrar aseavna': 'Cuentas por a cobrar aseavna',
-            'Cuentas por a Cobrar Avna': 'Cuentas por a Cobrar Avna',
-            'Líneas de la orden': 'Líneas de la orden',
-            'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
+            'Cliente/Código de barras': 'cliente/código de barras',
+            'Cliente/Nombre': 'cliente/nombre',
+            'Centro de Costos Aseavna': 'centro de costos aseavna',
+            'Fecha': 'fecha',
+            'Número de recibo': 'número de recibo',
+            'Cliente/Nombre principal': 'cliente/nombre principal',
+            'Total': 'precio total colaborador',
+            'Comision': 'comision aseavna',
+            'Cuentas por a cobrar aseavna': 'cuentas por a cobrar aseavna',
+            'Cuentas por a Cobrar Avna': 'cuentas por a cobrar avna',
+            'Líneas de la orden': 'líneas de la orden',
+            'Líneas de la orden/Cantidad': 'líneas de la orden/cantidad'
         }
         
         # Asignar columnas con fallback
-        for expected_col, actual_col in column_mapping.items():
-            if actual_col in df.columns:
-                df[expected_col] = df[actual_col]
+        for expected_col, search_col in column_mapping.items():
+            found_col = next((col for col_name, col in df_columns.items() if col_name == search_col.strip().lower()), None)
+            if found_col:
+                df[expected_col] = df[found_col]
             else:
                 df[expected_col] = 'Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0
+        
+        # Depuración: Verificar valores no numéricos antes de la conversión
+        numeric_cols = ['Total', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
+        for col in numeric_cols:
+            if col in df.columns:
+                non_numeric = df[col][~df[col].apply(lambda x: isinstance(x, (int, float)) or pd.isna(x))]
+                if not non_numeric.empty:
+                    st.write(f"Valores no numéricos en {col}:")
+                    st.write(non_numeric.head())
         
         # Limpieza de datos
         df['Cliente/Código de barras'] = df['Cliente/Código de barras'].fillna('Desconocido')
@@ -92,12 +107,13 @@ def load_data(uploaded_file):
         
         # Depuración: Mostrar sumas totales antes de filtros
         st.write("Sumas totales antes de aplicar filtros:")
-        st.write({
+        sums = {
             "Total (Precio total colaborador)": df['Total'].sum(),
             "Comision (Comision Aseavna)": df['Comision'].sum(),
             "Cuentas por a cobrar aseavna": df['Cuentas por a cobrar aseavna'].sum(),
             "Cuentas por a Cobrar Avna": df['Cuentas por a Cobrar Avna'].sum()
-        })
+        }
+        st.write(sums)
         
         # Añadir día de la semana sin depender del locale
         df['Día de la Semana'] = df['Fecha'].dt.day_name()
