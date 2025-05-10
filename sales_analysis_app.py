@@ -11,7 +11,6 @@ import xlsxwriter
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import statsmodels.api as sm
-import os
 
 # Funciones auxiliares
 def generate_pdf(data: pd.DataFrame, title: str, filename: str, _data_hash: str) -> io.BytesIO:
@@ -315,6 +314,7 @@ lang_code = 'es' if language == "Español" else 'en'
 # Mostrar el logo
 st.markdown('<div class="logo-container">', unsafe_allow_html=True)
 try:
+    import os
     if os.path.exists("app/data/logo.png"):
         st.image("app/data/logo.png", use_container_width=False, width=200)
     else:
@@ -538,32 +538,13 @@ else:
             'Producto Más Comprado'
         ]
         
-        # Identificar clientes con volumen de compras inusual usando percentil 95
-        if not client_sales.empty and client_sales['Ventas Totales (₡)'].sum() > 0:
-            threshold = client_sales['Ventas Totales (₡)'].quantile(0.95)  # Percentil 95
-            unusual = client_sales[client_sales['Ventas Totales (₡)'] > threshold]
-            if not unusual.empty:
-                st.markdown(
-                    f'<div class="alert-box" style="background-color: {CONFIG["colors"]["warning"]}; color: black;">'
-                    f'{TRANSLATIONS[lang_code]["unusual_sales"]} (Ventas > ₡{threshold:,.2f})'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
-                unusual_display = unusual[['Cliente', 'Ventas Totales (₡)', 'Número de Órdenes']].copy()
-                unusual_display['Ventas Totales (₡)'] = unusual_display['Ventas Totales (₡)'].apply(lambda x: f"₡{x:,.2f}")
-                st.dataframe(unusual_display)
-            else:
-                st.info("No se encontraron clientes con volumen de compras inusual.")
-        else:
-            st.warning("No hay datos suficientes para identificar clientes con compras inusuales.")
+        avg_client_sales = client_sales['Ventas Totales (₡)'].mean()
+        unusual = client_sales[client_sales['Ventas Totales (₡)'] > avg_client_sales * 2]
+        if not unusual.empty:
+            st.markdown(f'<div class="alert-box" style="background-color: {CONFIG["colors"]["warning"]}; color: black;">{TRANSLATIONS[lang_code]["unusual_sales"]}</div>', unsafe_allow_html=True)
+            st.dataframe(unusual[['Cliente', 'Ventas Totales (₡)']])
         
-        # Mostrar tabla completa
-        client_sales_display = client_sales.copy()
-        client_sales_display['Ventas Totales (₡)'] = client_sales_display['Ventas Totales (₡)'].apply(lambda x: f"₡{x:,.2f}")
-        client_sales_display['Comisión Total (₡)'] = client_sales_display['Comisión Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
-        client_sales_display['Ctas. por Cobrar Aseavna (₡)'] = client_sales_display['Ctas. por Cobrar Aseavna (₡)'].apply(lambda x: f"₡{x:,.2f}")
-        client_sales_display['Ctas. por Cobrar Avna (₡)'] = client_sales_display['Ctas. por Cobrar Avna (₡)'].apply(lambda x: f"₡{x:,.2f}")
-        st.dataframe(client_sales_display)
+        st.dataframe(client_sales)
         
         st.subheader(TRANSLATIONS[lang_code]['export_client_sales'])
         c1, c2, c3 = st.columns(3)
@@ -663,16 +644,14 @@ else:
         # Filtrar por Centro de Costos para visualizaciones
         viz_df = filtered_df.copy()
         if selected_centro != 'Todos':
-            viz_df = viz_df[viz_df['Centro de Costos Aseavna'] == selected_centro_normalized]
-
-        # Top 10 Productos por Ventas
+            viz_df = viz_df[viz_df['Centro de Costos Aseavna'] == selected_centro]
+        
+        # Top 10 Productos por Ventas con validación de datos
         top10 = viz_df.groupby('Líneas de la orden')['Total'].sum().nlargest(10).reset_index()
-        if not top10.empty and top10['Total'].sum() > 0:
-            top10['Total'] = top10['Total'].clip(upper=1e7)  # Limitar valores extremos
+        if not top10.empty:
+            top10['Total'] = top10['Total'].clip(upper=1000000)
             fig1 = px.bar(
-                top10, 
-                x='Líneas de la orden', 
-                y='Total',
+                top10, x='Líneas de la orden', y='Total',
                 title=TRANSLATIONS[lang_code]['top_products'],
                 labels={'Total': 'Ventas (₡)', 'Líneas de la orden': 'Producto'},
                 template="plotly_white",
@@ -680,66 +659,50 @@ else:
                 hover_data={'Total': ':,.2f'}
             )
             fig1.update_layout(
-                margin=dict(l=40, r=40, t=80, b=100),
+                margin=dict(l=20, r=20, t=60, b=80),
                 xaxis_tickangle=45,
                 xaxis_title_font_size=14,
                 yaxis_title_font_size=14,
-                title_x=0.5,
-                showlegend=False,
-                xaxis=dict(tickmode='linear'),
-                yaxis=dict(gridcolor='lightgray')
+                title_x=0.5
             )
             st.plotly_chart(fig1, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar los top 10 productos.")
+            st.warning("No hay datos suficientes para mostrar los top 10 productos.")
 
-        # Tendencia Diaria de Ventas
         daily_summary = viz_df.groupby(viz_df['Fecha'].dt.date)['Total'].sum().reset_index()
-        if not daily_summary.empty and daily_summary['Total'].sum() > 0:
+        if not daily_summary.empty:
             fig2 = px.line(
-                daily_summary, 
-                x='Fecha', 
-                y='Total',
+                daily_summary, x='Fecha', y='Total',
                 labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
                 title=TRANSLATIONS[lang_code]['daily_trend'],
                 template="plotly_white",
-                color_discrete_sequence=["#4CAF50"],
-                markers=True
+                color_discrete_sequence=["#4CAF50"]
             )
             fig2.update_layout(
-                margin=dict(l=40, r=40, t=80, b=40),
+                margin=dict(l=20, r=20, t=60, b=20),
                 xaxis_title_font_size=14,
                 yaxis_title_font_size=14,
-                title_x=0.5,
-                xaxis=dict(tickformat="%Y-%m-%d", gridcolor='lightgray'),
-                yaxis=dict(gridcolor='lightgray')
+                title_x=0.5
             )
             st.plotly_chart(fig2, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar la tendencia diaria.")
-
-        # Ventas por Grupo de Clientes
+            st.warning("No hay datos suficientes para mostrar la tendencia diaria.")
+        
         grp = viz_df.groupby('Cliente/Nombre principal')['Total'].sum().reset_index()
-        if not grp.empty and grp['Total'].sum() > 0:
-            # Limitar a los top 10 grupos para evitar gráficas abarrotadas
-            grp = grp.nlargest(10, 'Total')
+        if not grp.empty:
             fig3 = px.pie(
-                grp, 
-                names='Cliente/Nombre principal', 
-                values='Total',
+                grp, names='Cliente/Nombre principal', values='Total',
                 title=TRANSLATIONS[lang_code]['sales_by_group'],
                 template="plotly_white",
                 color_discrete_sequence=px.colors.sequential.Viridis
             )
-            fig3.update_traces(textinfo='percent+label', pull=[0.1] + [0] * (len(grp) - 1))
             fig3.update_layout(
-                margin=dict(l=40, r=40, t=80, b=40),
-                title_x=0.5,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+                margin=dict(l=20, r=20, t=60, b=20),
+                title_x=0.5
             )
             st.plotly_chart(fig3, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar las ventas por grupo de clientes.")
+            st.warning("No hay datos suficientes para mostrar las ventas por grupo de clientes.")
 
     # Tab 6: Resumen de Métricas para Exportar
     with tab6:
