@@ -310,9 +310,14 @@ lang_code = 'es' if language == "Español" else 'en'
 # Mostrar el logo
 st.markdown('<div class="logo-container">', unsafe_allow_html=True)
 try:
-    st.image("app/data/logo.png", use_container_width=False, width=200)
+    # Verificar si el archivo existe antes de cargarlo
+    import os
+    if os.path.exists("app/data/logo.png"):
+        st.image("app/data/logo.png", use_container_width=False, width=200)
+    else:
+        st.warning("El archivo 'logo.png' no se encuentra en app/data/. Por favor, asegúrese de que el archivo esté en la ruta correcta.")
 except Exception as e:
-    st.warning("No se pudo cargar el logo. Asegúrese de que 'logo.png' esté en app/data/.")
+    st.warning(f"No se pudo cargar el logo debido a un error: {str(e)}. Asegúrese de que 'logo.png' esté en app/data/.")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # Título y descripción
