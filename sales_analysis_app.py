@@ -84,16 +84,12 @@ def load_data():
         return df
 
     def calculate_total(df):
-        total_cols = ['Precio total colaborador', 'Comision Aseavna', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
-        cuentas_cols = ['Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
+        # No calculamos Total_Cuentas_Cobrar, solo mantenemos Total como la suma de columnas relevantes (excluyendo cuentas por cobrar)
+        total_cols = ['Precio total colaborador', 'Comision Aseavna']
         df['Total'] = 0
-        df['Total_Cuentas_Cobrar'] = 0
         for col in total_cols:
             if col in df.columns:
                 df['Total'] += pd.to_numeric(df[col], errors='coerce').fillna(0)
-        for col in cuentas_cols:
-            if col in df.columns:
-                df['Total_Cuentas_Cobrar'] += pd.to_numeric(df[col], errors='coerce').fillna(0)
         return df
 
     def clean_data(df):
@@ -106,7 +102,7 @@ def load_data():
         }
         for col, default in defaults.items():
             df[col] = df[col].fillna(default)
-        numeric_cols = ['Líneas de la orden/Cantidad', 'Total', 'Total_Cuentas_Cobrar', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna', 'Precio total colaborador']
+        numeric_cols = ['Líneas de la orden/Cantidad', 'Total', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna', 'Precio total colaborador']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         # Normalizar columnas de texto para los filtros
@@ -165,7 +161,7 @@ CONFIG = {
         'Fecha': 'Fecha',
         'Número de recibo': 'Número de recibo',
         'Cliente/Nombre principal': 'Cliente/Nombre principal',
-        'Precio total colaborador': 'Precio total colaborador',
+        'Precio total colaborador': 'Ventas Totales',  # Mapeo ajustado para reflejar la columna del Excel
         'Comision': 'Comision Aseavna',
         'Cuentas por a cobrar aseavna': 'Cuentas por a cobrar aseavna',
         'Cuentas por a Cobrar Avna': 'Cuentas por a Cobrar Avna',
@@ -217,8 +213,8 @@ TRANSLATIONS = {
         'no_duplicates': '✅ No se detectaron almuerzos ejecutivos duplicados en el mismo día.',
         'download_excel': 'Descargar Duplicados (Excel)',
         'download_pdf': 'Descargar Duplicados (PDF)',
-        'unusual_sales': '⚠️ Clientes con volumen de compras inusual:',
-        'export_client_sales': 'Exportar Reporte de Ventas por Cliente',
+        'unusual_sales': '⚠️ Clientes con volumen de consumo inusual:',
+        'export_client_sales': 'Exportar Reporte de Consumo por Cliente',
         'download_csv': 'Descargar CSV',
         'download_excel_client': 'Descargar Excel',
         'download_pdf_client': 'Descargar PDF',
@@ -227,9 +223,9 @@ TRANSLATIONS = {
         'no_predictive_data': 'No hay suficientes datos históricos para predicción (se requieren al menos 2 días).',
         'no_monthly_data': 'No hay suficientes datos mensuales para calcular el crecimiento de productos (se requieren al menos dos meses).',
         'predictive_error': 'Error en el análisis predictivo: {error}',
-        'top_products': 'Top 10 Productos por Ventas',
-        'daily_trend': 'Tendencia Diaria de Ventas',
-        'sales_by_group': 'Ventas por Grupo de Clientes',
+        'top_products': 'Top 10 Productos por Consumo',
+        'daily_trend': 'Tendencia Diaria de Consumo',
+        'sales_by_group': 'Consumo por Grupo de Clientes',
         'export_summary': 'Exportar Resumen de Métricas',
         'download_summary_csv': 'Descargar Resumen (CSV)',
         'download_summary_excel': 'Descargar Resumen (Excel)',
@@ -250,7 +246,7 @@ TRANSLATIONS = {
         'reset_filters': 'Reset Filters',
         'metrics': 'General Metrics',
         'duplicates': 'Duplicate Lunches',
-        'client_sales': 'Ventas por Cliente',
+        'client_sales': 'Sales by Client',
         'predictive': 'Predictive Analysis',
         'visualizations': 'Visualizations',
         'export': 'Export Summary',
@@ -269,8 +265,8 @@ TRANSLATIONS = {
         'no_duplicates': '✅ No duplicate executive lunches detected on the same day.',
         'download_excel': 'Download Duplicates (Excel)',
         'download_pdf': 'Download Duplicates (PDF)',
-        'unusual_sales': '⚠️ Clients with unusual purchase volume:',
-        'export_client_sales': 'Export Client Sales Report',
+        'unusual_sales': '⚠️ Clients with unusual consumption volume:',
+        'export_client_sales': 'Export Client Consumption Report',
         'download_csv': 'Download CSV',
         'download_excel_client': 'Download Excel',
         'download_pdf_client': 'Download PDF',
@@ -279,9 +275,9 @@ TRANSLATIONS = {
         'no_predictive_data': 'Not enough historical data for prediction (at least 2 days required).',
         'no_monthly_data': 'Not enough monthly data to calculate product growth (at least two months required).',
         'predictive_error': 'Error in predictive analysis: {error}',
-        'top_products': 'Top 10 Products by Sales',
-        'daily_trend': 'Daily Sales Trend',
-        'sales_by_group': 'Sales by Client Group',
+        'top_products': 'Top 10 Products by Consumption',
+        'daily_trend': 'Daily Consumption Trend',
+        'sales_by_group': 'Consumption by Client Group',
         'export_summary': 'Export Metrics Summary',
         'download_summary_csv': 'Download Summary (CSV)',
         'download_summary_excel': 'Download Summary (Excel)',
@@ -522,11 +518,11 @@ else:
         else:
             st.success(TRANSLATIONS[lang_code]['no_duplicates'])
 
-    # Tab 3: Análisis de Ventas por Cliente
+    # Tab 3: Análisis de Consumo por Cliente
     with tab3:
         st.header(TRANSLATIONS[lang_code]['client_sales'])
         client_sales = filtered_df.groupby('Cliente/Nombre').agg({
-            'Total_Cuentas_Cobrar': 'sum',
+            'Precio total colaborador': 'sum',  # Usamos la columna mapeada como Ventas Totales del Excel
             'Número de recibo': 'nunique',
             'Comision': 'sum',
             'Cuentas por a cobrar aseavna': 'sum',
@@ -535,7 +531,7 @@ else:
         }).reset_index()
         client_sales.columns = [
             'Cliente',
-            'Total Cuentas por Cobrar (₡)',
+            'Consumo Total (₡)',
             'Número de Órdenes',
             'Comisión Total (₡)',
             'Ctas. por Cobrar Aseavna (₡)',
@@ -543,28 +539,28 @@ else:
             'Producto Más Comprado'
         ]
         
-        # Identificar clientes con volumen de compras inusual usando percentil 95 basado en Total_Cuentas_Cobrar
-        if not client_sales.empty and client_sales['Total Cuentas por Cobrar (₡)'].sum() > 0:
-            threshold = client_sales['Total Cuentas por Cobrar (₡)'].quantile(0.95)  # Percentil 95
-            unusual = client_sales[client_sales['Total Cuentas por Cobrar (₡)'] > threshold]
+        # Identificar clientes con volumen de consumo inusual usando percentil 95 basado en Consumo Total
+        if not client_sales.empty and client_sales['Consumo Total (₡)'].sum() > 0:
+            threshold = client_sales['Consumo Total (₡)'].quantile(0.95)  # Percentil 95
+            unusual = client_sales[client_sales['Consumo Total (₡)'] > threshold]
             if not unusual.empty:
                 st.markdown(
                     f'<div class="alert-box" style="background-color: {CONFIG["colors"]["warning"]}; color: black;">'
-                    f'{TRANSLATIONS[lang_code]["unusual_sales"]} (Cuentas por Cobrar > ₡{threshold:,.2f})'
+                    f'{TRANSLATIONS[lang_code]["unusual_sales"]} (Consumo Total > ₡{threshold:,.2f})'
                     f'</div>',
                     unsafe_allow_html=True
                 )
-                unusual_display = unusual[['Cliente', 'Total Cuentas por Cobrar (₡)', 'Número de Órdenes']].copy()
-                unusual_display['Total Cuentas por Cobrar (₡)'] = unusual_display['Total Cuentas por Cobrar (₡)'].apply(lambda x: f"₡{x:,.2f}")
+                unusual_display = unusual[['Cliente', 'Consumo Total (₡)', 'Número de Órdenes']].copy()
+                unusual_display['Consumo Total (₡)'] = unusual_display['Consumo Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
                 st.dataframe(unusual_display)
             else:
-                st.info("No se encontraron clientes con volumen de cuentas por cobrar inusual.")
+                st.info("No se encontraron clientes con volumen de consumo inusual.")
         else:
-            st.warning("No hay datos suficientes para identificar clientes con cuentas por cobrar inusuales.")
+            st.warning("No hay datos suficientes para identificar clientes con consumo inusual.")
         
         # Mostrar tabla completa
         client_sales_display = client_sales.copy()
-        client_sales_display['Total Cuentas por Cobrar (₡)'] = client_sales_display['Total Cuentas por Cobrar (₡)'].apply(lambda x: f"₡{x:,.2f}")
+        client_sales_display['Consumo Total (₡)'] = client_sales_display['Consumo Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Comisión Total (₡)'] = client_sales_display['Comisión Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Ctas. por Cobrar Aseavna (₡)'] = client_sales_display['Ctas. por Cobrar Aseavna (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Ctas. por Cobrar Avna (₡)'] = client_sales_display['Ctas. por Cobrar Avna (₡)'].apply(lambda x: f"₡{x:,.2f}")
@@ -577,23 +573,23 @@ else:
             st.download_button(
                 TRANSLATIONS[lang_code]['download_csv'],
                 data=csv_bytes,
-                file_name="ventas_por_cliente.csv",
+                file_name="consumo_por_cliente.csv",
                 mime="text/csv"
             )
         with c2:
-            buf_xl2 = generate_excel(client_sales, "Ventas por Cliente", client_sales.to_string())
+            buf_xl2 = generate_excel(client_sales, "Consumo por Cliente", client_sales.to_string())
             st.download_button(
                 TRANSLATIONS[lang_code]['download_excel_client'],
                 data=buf_xl2,
-                file_name="ventas_por_cliente.xlsx",
+                file_name="consumo_por_cliente.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         with c3:
-            buf_pdf2 = generate_pdf(client_sales, "Reporte de Ventas por Cliente - ASEAVNA", "ventas_por_cliente.pdf", client_sales.to_string())
+            buf_pdf2 = generate_pdf(client_sales, "Reporte de Consumo por Cliente - ASEAVNA", "consumo_por_cliente.pdf", client_sales.to_string())
             st.download_button(
                 TRANSLATIONS[lang_code]['download_pdf_client'],
                 data=buf_pdf2,
-                file_name="ventas_por_cliente.pdf",
+                file_name="consumo_por_cliente.pdf",
                 mime="application/pdf"
             )
 
@@ -670,19 +666,19 @@ else:
         if selected_centro != 'Todos':
             viz_df = viz_df[viz_df['Centro de Costos Aseavna'] == selected_centro_normalized]
 
-        # Top 10 Productos por Cuentas por Cobrar
-        top10 = viz_df.groupby('Líneas de la orden')['Total_Cuentas_Cobrar'].sum().nlargest(10).reset_index()
-        if not top10.empty and top10['Total_Cuentas_Cobrar'].sum() > 0:
-            top10['Total_Cuentas_Cobrar'] = top10['Total_Cuentas_Cobrar'].clip(upper=1e7)  # Limitar valores extremos
+        # Top 10 Productos por Consumo (usando Precio total colaborador)
+        top10 = viz_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().nlargest(10).reset_index()
+        if not top10.empty and top10['Precio total colaborador'].sum() > 0:
+            top10['Precio total colaborador'] = top10['Precio total colaborador'].clip(upper=1e7)  # Limitar valores extremos
             fig1 = px.bar(
                 top10, 
                 x='Líneas de la orden', 
-                y='Total_Cuentas_Cobrar',
+                y='Precio total colaborador',
                 title=TRANSLATIONS[lang_code]['top_products'],
-                labels={'Total_Cuentas_Cobrar': 'Cuentas por Cobrar (₡)', 'Líneas de la orden': 'Producto'},
+                labels={'Precio total colaborador': 'Consumo (₡)', 'Líneas de la orden': 'Producto'},
                 template="plotly_white",
                 color_discrete_sequence=["#4CAF50"],
-                hover_data={'Total_Cuentas_Cobrar': ':,.2f'}
+                hover_data={'Precio total colaborador': ':,.2f'}
             )
             fig1.update_layout(
                 margin=dict(l=40, r=40, t=80, b=100),
@@ -696,16 +692,16 @@ else:
             )
             st.plotly_chart(fig1, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar los top 10 productos por cuentas por cobrar.")
+            st.warning("No hay datos suficientes o válidos para mostrar los top 10 productos por consumo.")
 
-        # Tendencia Diaria de Cuentas por Cobrar
-        daily_summary = viz_df.groupby(viz_df['Fecha'].dt.date)['Total_Cuentas_Cobrar'].sum().reset_index()
-        if not daily_summary.empty and daily_summary['Total_Cuentas_Cobrar'].sum() > 0:
+        # Tendencia Diaria de Consumo
+        daily_summary = viz_df.groupby(viz_df['Fecha'].dt.date)['Precio total colaborador'].sum().reset_index()
+        if not daily_summary.empty and daily_summary['Precio total colaborador'].sum() > 0:
             fig2 = px.line(
                 daily_summary, 
                 x='Fecha', 
-                y='Total_Cuentas_Cobrar',
-                labels={'Total_Cuentas_Cobrar': 'Cuentas por Cobrar (₡)', 'Fecha': 'Fecha'},
+                y='Precio total colaborador',
+                labels={'Precio total colaborador': 'Consumo (₡)', 'Fecha': 'Fecha'},
                 title=TRANSLATIONS[lang_code]['daily_trend'],
                 template="plotly_white",
                 color_discrete_sequence=["#4CAF50"],
@@ -721,17 +717,17 @@ else:
             )
             st.plotly_chart(fig2, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar la tendencia diaria de cuentas por cobrar.")
+            st.warning("No hay datos suficientes o válidos para mostrar la tendencia diaria de consumo.")
 
-        # Cuentas por Cobrar por Grupo de Clientes
-        grp = viz_df.groupby('Cliente/Nombre principal')['Total_Cuentas_Cobrar'].sum().reset_index()
-        if not grp.empty and grp['Total_Cuentas_Cobrar'].sum() > 0:
+        # Consumo por Grupo de Clientes
+        grp = viz_df.groupby('Cliente/Nombre principal')['Precio total colaborador'].sum().reset_index()
+        if not grp.empty and grp['Precio total colaborador'].sum() > 0:
             # Limitar a los top 10 grupos para evitar gráficas abarrotadas
-            grp = grp.nlargest(10, 'Total_Cuentas_Cobrar')
+            grp = grp.nlargest(10, 'Precio total colaborador')
             fig3 = px.pie(
                 grp, 
                 names='Cliente/Nombre principal', 
-                values='Total_Cuentas_Cobrar',
+                values='Precio total colaborador',
                 title=TRANSLATIONS[lang_code]['sales_by_group'],
                 template="plotly_white",
                 color_discrete_sequence=px.colors.sequential.Viridis
@@ -744,7 +740,7 @@ else:
             )
             st.plotly_chart(fig3, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar las cuentas por cobrar por grupo de clientes.")
+            st.warning("No hay datos suficientes o válidos para mostrar el consumo por grupo de clientes.")
 
     # Tab 6: Resumen de Métricas para Exportar
     with tab6:
