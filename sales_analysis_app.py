@@ -510,7 +510,7 @@ else:
 
     # Tab 3: Análisis de Consumo por Cliente
     with tab3:
-        st  st.header(TRANSLATIONS[lang_code]['client_sales'])
+        st.header(TRANSLATIONS[lang_code]['client_sales'])
         client_sales = filtered_df.groupby('Cliente/Nombre').agg({
             'Precio total colaborador': 'sum',
             'Número de recibo': 'nunique',
@@ -710,7 +710,7 @@ else:
             st.warning("No hay datos suficientes o válidos para mostrar la tendencia diaria de consumo.")
 
         # Consumo por Grupo de Clientes
-        grp = viz_df.groupby('Cliente/Nombre principal')['Precio total colaborador'].sum().reset_index()
+        grp = viz_df.groupby('Cliente/Nombre principal]['Precio total colaborador'].sum().reset_index()
         if not grp.empty and grp['Precio total colaborador'].sum() > 0:
             grp = grp.nlargest(10, 'Precio total colaborador')
             fig3 = px.pie(
