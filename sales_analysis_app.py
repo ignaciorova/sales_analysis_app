@@ -164,8 +164,7 @@ CONFIG = {
         'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
     },
     'styles': {
-        'metric_box': 'border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center; display: flex; flex-direction: column; justify-content: center; height: 100%;',
-        'metric_label': 'font-size: 12px; color: #2c3e50; margin-bottom: 5px;',
+        'metric_box': 'border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center;',
         'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px 0; color: white;'
     },
     'colors': {
@@ -298,7 +297,6 @@ st.markdown(f"""
 .stSidebar {{background-color: #e8ecef;}}
 h1, h2, h3 {{color: {CONFIG['colors']['secondary']};}}
 .metric-box {{{CONFIG['styles']['metric_box']}}}
-.metric-label {{{CONFIG['styles']['metric_label']}}}
 .alert-box {{{CONFIG['styles']['alert_box']}}}
 .stMetric {{font-size: 14px;}}
 .logo-container {{text-align: center; margin-bottom: 20px;}}
@@ -417,28 +415,23 @@ else:
 
     with col1:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["orders"]}</div>', unsafe_allow_html=True)
-        st.metric("", f"{total_orders:,}")
+        st.metric(TRANSLATIONS[lang_code]['orders'], f"{total_orders:,}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col2:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["lines"]}</div>', unsafe_allow_html=True)
-        st.metric("", f"{total_lines_filtered:,}")
+        st.metric(TRANSLATIONS[lang_code]['lines'], f"{total_lines_filtered:,}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col3:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["commission"]}</div>', unsafe_allow_html=True)
-        st.metric("", f"₡{total_commission:,.2f}")
+        st.metric(TRANSLATIONS[lang_code]['commission'], f"₡{total_commission:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col4:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["accounts_aseavna"]}</div>', unsafe_allow_html=True)
-        st.metric("", f"₡{total_cuentas_cobrar_aseavna:,.2f}")
+        st.metric(TRANSLATIONS[lang_code]['accounts_aseavna'], f"₡{total_cuentas_cobrar_aseavna:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col5:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["accounts_avna"]}</div>', unsafe_allow_html=True)
-        st.metric("", f"₡{total_cuentas_cobrar_avna:,.2f}")
+        st.metric(TRANSLATIONS[lang_code]['accounts_avna'], f"₡{total_cuentas_cobrar_avna:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Crear pestañas
@@ -459,13 +452,11 @@ else:
         col1, col2 = st.columns(2)
         with col1:
             st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-            st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["top_product"]}</div>', unsafe_allow_html=True)
-            st.metric("", most_sold)
+            st.metric(TRANSLATIONS[lang_code]['top_product'], most_sold)
             st.markdown('</div>', unsafe_allow_html=True)
         with col2:
             st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-            st.markdown(f'<div class="metric-label">{TRANSLATIONS[lang_code]["unique_clients"]}</div>', unsafe_allow_html=True)
-            st.metric("", len(filtered_df['Cliente/Nombre'].unique()))
+            st.metric(TRANSLATIONS[lang_code]['unique_clients'], len(filtered_df['Cliente/Nombre'].unique()))
             st.markdown('</div>', unsafe_allow_html=True)
         
         daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index()
