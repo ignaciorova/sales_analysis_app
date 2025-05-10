@@ -263,7 +263,7 @@ TRANSLATIONS = {
     },
     'en': {
         'title': '📊 Sales Analysis Dashboard - ASEAVNA',
-        'description': 'Advanced analysis of POS sales orders, with metrics, predictions, and downloadable client reports.',
+        'description': 'Analysis of POS sales orders.',
         'filters_header': 'Analysis Filters',
         'date_range': 'Date Range',
         'select_period': 'Select Period',
