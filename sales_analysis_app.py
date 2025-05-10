@@ -173,7 +173,7 @@ lang_code = 'es' if language == "Español" else 'en'
 # Mostrar el logo
 st.markdown('<div class="logo-container">', unsafe_allow_html=True)
 try:
-    st.image("app/data/logo.png", use_column_width=False, width=200)
+    st.image("app/data/logo.png", use_container_width=False, width=200)
 except Exception as e:
     st.warning("No se pudo cargar el logo. Asegúrese de que 'logo.png' esté en app/data/.")
 st.markdown('</div>', unsafe_allow_html=True)
@@ -209,8 +209,12 @@ def load_data():
         return df
 
     def calculate_total(df):
-        # Calcular la columna Total sumando las columnas relevantes
-        df['Total'] = df['precio total colaborador'].fillna(0) + df['Cuentas por a cobrar aseavna'].fillna(0) + df['Cuentas por a Cobrar Avna'].fillna(0)
+        # Usar columnas mapeadas para calcular Total
+        total_cols = ['precio total colaborador', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
+        df['Total'] = 0
+        for col in total_cols:
+            if col in df.columns:
+                df['Total'] += df[col].fillna(0)
         return df
 
     def clean_data(df):
