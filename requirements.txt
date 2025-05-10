@@ -7,3 +7,4 @@ reportlab
 scikit-learn
 statsmodels
 numpy
+kaleido

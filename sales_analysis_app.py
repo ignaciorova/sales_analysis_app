@@ -19,21 +19,28 @@ def add_graph_controls(fig, fig_name):
     col1, col2 = st.columns(2)
     with col1:
         # Botón de descarga como PNG
-        img_bytes = pio.to_image(fig, format="png", scale=2)
-        st.download_button(
-            label="Descargar Gráfica (PNG)",
-            data=img_bytes,
-            file_name=f"{fig_name}.png",
-            mime="image/png"
-        )
+        try:
+            if fig is not None and fig.data:  # Verificar que la gráfica sea válida
+                img_bytes = pio.to_image(fig, format="png", scale=2)
+                st.download_button(
+                    label="Descargar Gráfica (PNG)",
+                    data=img_bytes,
+                    file_name=f"{fig_name}.png",
+                    mime="image/png"
+                )
+            else:
+                st.warning(f"No se pudo generar la imagen para '{fig_name}'. La gráfica está vacía o no es válida.")
+        except Exception as e:
+            st.warning(f"Error al generar la imagen para '{fig_name}': {str(e)}")
     with col2:
         # Botón para restablecer zoom/vista
         if st.button("Restablecer Vista", key=f"reset_{fig_name}"):
-            fig.update_layout(
-                xaxis=dict(autorange=True),
-                yaxis=dict(autorange=True)
-            )
-            st.rerun()
+            if fig is not None:
+                fig.update_layout(
+                    xaxis=dict(autorange=True),
+                    yaxis=dict(autorange=True)
+                )
+                st.rerun()
 
 # Funciones auxiliares
 def generate_pdf(data: pd.DataFrame, title: str, filename: str, _data_hash: str) -> io.BytesIO:
@@ -245,7 +252,7 @@ TRANSLATIONS = {
         'no_monthly_data': 'No hay suficientes datos mensuales para calcular el crecimiento de productos (se requieren al menos dos meses).',
         'predictive_error': 'Error en el análisis predictivo: {error}',
         'top_products': 'Top 10 Productos por Ingresos',
-        '/yyyy-MM-ddaily_trend': 'Tendencia Diaria de Ingresos',
+        'daily_trend': 'Tendencia Diaria de Ingresos',
         'sales_by_group': 'Ingresos por Grupo de Clientes',
         'export_summary': 'Exportar Resumen de Métricas',
         'download_summary_csv': 'Descargar Resumen (CSV)',
