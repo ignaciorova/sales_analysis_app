@@ -263,7 +263,7 @@ TRANSLATIONS = {
     },
     'en': {
         'title': '📊 Sales Analysis Dashboard - ASEAVNA',
-        'description': 'Analysis of POS sales orders.',
+        'description': 'Advanced analysis of POS sales orders, with metrics, predictions, and downloadable client reports.',
         'filters_header': 'Analysis Filters',
         'date_range': 'Date Range',
         'select_period': 'Select Period',
@@ -327,7 +327,11 @@ st.markdown(f"""
 <style>
 .main {{background-color: #f5f7fa; padding: 10px;}}
 .stButton>button {{background-color: {CONFIG['colors']['primary']}; color: white; border-radius: 5px;}}
-.stSidebar {{background-color: #e8ecef; padding: 5px;}}
+.stSidebar {{background-color: #e8ecef; padding: 5px; color: {CONFIG['colors']['secondary']};}}
+.stSidebar h1, .stSidebar h2, .stSidebar h3, .stSidebar p, .stSidebar label, .stSidebar .stSelectbox label, .stSidebar .stDateInput label {{
+    color: {CONFIG['colors']['secondary']} !important;
+    font-weight: bold;
+}}
 h1, h2, h3 {{color: {CONFIG['colors']['secondary']}; text-align: center;}}
 .metric-box {{border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%; display: flex; flex-direction: column; justify-content: center; align-items: center;}}
 .metric-box .title {{font-size: 10px; color: {CONFIG['colors']['primary']}; margin-bottom: 2px;}}
@@ -342,6 +346,11 @@ h1, h2, h3 {{color: {CONFIG['colors']['secondary']}; text-align: center;}}
     .plotly-graph-div {{width: 100% !important; height: auto !important;}}
     .modebar {{display: block !important;}}
     .stButton>button {{font-size: 12px; padding: 8px;}}
+    .stSidebar {{background-color: #e8ecef !important;}}
+    .stSidebar h1, .stSidebar h2, .stSidebar h3, .stSidebar p, .stSidebar label, .stSidebar .stSelectbox label, .stSidebar .stDateInput label {{
+        color: {CONFIG['colors']['secondary']} !important;
+        font-size: 14px !important;
+    }}
 }}
 </style>
 """, unsafe_allow_html=True)
