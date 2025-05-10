@@ -21,30 +21,35 @@ try:
 except:
     locale.setlocale(locale.LC_TIME, '')
 
-# Estilos CSS
+# Estilos CSS para mejorar la presentación
 st.markdown("""
 <style>
-.metric-box {
-    background-color: #f0f2f6;
-    padding: 20px;
-    border-radius: 10px;
-    text-align: center;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
-}
-.metric-box h3 {
-    margin: 0;
-    font-size: 1.2em;
-    color: #333;
-}
-.metric-box p {
-    font-size: 1.8em;
-    font-weight: bold;
-    color: #1f77b4;
-    margin: 10px 0 0 0;
-}
-.sidebar .sidebar-content {
-    background-color: #f8f9fa;
-}
+    .metric-box {
+        background-color: #f0f2f6;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 15px;
+    }
+    .metric-box h3 {
+        margin: 0;
+        font-size: 1.2em;
+        color: #333;
+    }
+    .metric-box p {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: #1f77b4;
+        margin: 10px 0 0 0;
+    }
+    .sidebar .sidebar-content {
+        background-color: #f8f9fa;
+    }
+    .stButton>button {
+        width: 100%;
+        margin: 5px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -62,30 +67,35 @@ def load_data(file, file_name=None):
         else:
             df = pd.read_excel(file, engine='openpyxl')
         
-        # Verificar columnas esperadas
-        expected_columns = ['Fecha', 'Cliente/Nombre', 'Cliente/Nombre principal', 'Líneas de la orden', 
-                           'Precio total colaborador', 'Comision Aseavna', 'Líneas de la orden/Cantidad', 'Número de recibo']
-        missing_columns = [col for col in expected_columns if col not in df.columns]
+        # Verificar y renombrar columnas esperadas
+        expected_columns = {
+            'Fecha': 'Fecha',
+            'Cliente/Nombre': 'Cliente/Nombre',
+            'Cliente/Nombre principal': 'Cliente/Nombre principal',
+            'Líneas de la orden': 'Líneas de la orden',
+            'Precio total colaborador': 'Precio total colaborador',
+            'Comision Aseavna': 'Comision Aseavna',
+            'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad',
+            'Número de recibo': 'Número de recibo'
+        }
+        missing_columns = [col for col in expected_columns.keys() if col not in df.columns]
         if missing_columns:
-            raise ValueError(f"Faltan las siguientes columnas en el archivo: {missing_columns}")
+            st.error(f"Faltan las siguientes columnas en el archivo: {missing_columns}")
+            return pd.DataFrame()
+        df = df.rename(columns=expected_columns)
         
         # Manejo de la columna Fecha
         if pd.api.types.is_datetime64_any_dtype(df['Fecha']):
-            # Si ya es datetime, no necesita conversión
             st.write("La columna 'Fecha' ya está en formato datetime.")
         else:
-            # Intentar convertir como número serial de Excel
+            # Intentar convertir como número serial o texto
             try:
                 df['Fecha'] = pd.to_datetime(df['Fecha'], origin='1899-12-30', unit='D', errors='coerce')
             except:
-                # Si falla, intentar como texto o formato de fecha
                 df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
         
-        # Verificar si hay fechas nulas después de la conversión
-        if df['Fecha'].isna().any():
-            st.warning(f"Se encontraron {df['Fecha'].isna().sum()} filas con fechas inválidas. Estas se ignorarán en algunos análisis.")
-        
-        # Limpieza de datos
+        # Manejo de valores nulos
+        df['Fecha'] = df['Fecha'].fillna(pd.Timestamp('1970-01-01'))
         df['Cliente/Nombre'] = df['Cliente/Nombre'].fillna('Desconocido')
         df['Cliente/Nombre principal'] = df['Cliente/Nombre principal'].fillna('Desconocido')
         df['Líneas de la orden'] = df['Líneas de la orden'].fillna('Sin Producto')
@@ -94,9 +104,9 @@ def load_data(file, file_name=None):
         df['Líneas de la orden/Cantidad'] = pd.to_numeric(df['Líneas de la orden/Cantidad'], errors='coerce').fillna(1)
         df['Número de recibo'] = df['Número de recibo'].fillna('Sin Recibo')
         
-        # Mostrar información de depuración
+        # Depuración
         st.write(f"Filas cargadas: {len(df)}")
-        st.write(f"Primeras fechas en la columna 'Fecha': {df['Fecha'].head().tolist()}")
+        st.write(f"Primeras fechas: {df['Fecha'].head().tolist()}")
         
         return df
     except Exception as e:
@@ -200,16 +210,8 @@ def calculate_product_growth(df):
 # Mostrar directorio de trabajo actual
 st.write(f"**Directorio de trabajo actual**: {os.getcwd()}")
 
-# Intento de carga automática del archivo
-file_path = "Órdenes del punto de venta (pos.order).xlsx"
+# Carga de datos
 df = pd.DataFrame()
-
-if os.path.exists(file_path):
-    df = load_data(file_path)
-else:
-    st.warning(f"El archivo {file_path} no se encuentra en el directorio {os.getcwd()}. Por favor, carga el archivo manualmente.")
-
-# Selector de archivo manual
 uploaded_file = st.file_uploader("Carga el archivo Excel (.xlsx)", type=["xlsx"], key="file_uploader")
 if uploaded_file is not None:
     df = load_data(uploaded_file, uploaded_file.name)
@@ -236,16 +238,16 @@ if not df.empty:
         end_date = max_date
         start_date = end_date - timedelta(days=30)
     
-    product_types = ['Todos'] + sorted(df['Líneas de la orden'].unique().tolist())
+    product_types = ['Todos'] + sorted(df['Líneas de la orden'].dropna().unique().tolist())
     selected_product = st.sidebar.selectbox("Tipo de Producto", product_types, key="product_filter")
     
-    client_groups = ['Todos'] + sorted(df['Cliente/Nombre principal'].unique().tolist())
+    client_groups = ['Todos'] + sorted(df['Cliente/Nombre principal'].dropna().unique().tolist())
     selected_group = st.sidebar.selectbox("Grupo de Clientes", client_groups, key="group_filter")
     
     days = ['Todos', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
     selected_day = st.sidebar.selectbox("Día de la Semana", days, key="day_filter")
     
-    clients = ['Todos'] + sorted(df['Cliente/Nombre'].unique().tolist())
+    clients = ['Todos'] + sorted(df['Cliente/Nombre'].dropna().unique().tolist())
     selected_client = st.sidebar.selectbox("Cliente", clients, key="client_filter")
     
     # Filtrado de datos
@@ -268,32 +270,7 @@ if not df.empty:
     # Título principal
     st.title("Dashboard de Ventas ASEAVNA")
     
-    # Análisis de duplicados
-    st.header("Análisis de Almuerzos Duplicados")
-    duplicates = detect_duplicates(filtered_df)
-    
-    if not duplicates.empty:
-        st.write(f"Se encontraron {len(duplicates)} órdenes duplicadas de Almuerzo Ejecutivo.")
-        st.dataframe(duplicates[['Cliente/Nombre', 'Fecha', 'Número de recibo', 'Precio total colaborador', 'Líneas de la orden']])
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Descargar Duplicados (Excel)", key="download_duplicates_excel"):
-                excel_file = f"duplicados_{uuid.uuid4()}.xlsx"
-                generate_excel(duplicates, excel_file)
-                with open(excel_file, "rb") as f:
-                    st.download_button("Descargar Excel", f, file_name=excel_file, key="download_excel_button")
-        with col2:
-            if st.button("Descargar Duplicados (PDF)", key="download_duplicates_pdf"):
-                pdf_file = f"duplicados_{uuid.uuid4()}.pdf"
-                generate_pdf(duplicates[['Cliente/Nombre', 'Fecha', 'Número de recibo', 'Precio total colaborador']], 
-                            "Reporte de Duplicados", pdf_file)
-                with open(pdf_file, "rb") as f:
-                    st.download_button("Descargar PDF", f, file_name=pdf_file, key="download_pdf_button")
-    else:
-        st.write("No se encontraron órdenes duplicadas de Almuerzo Ejecutivo.")
-    
-    # Métricas generales
+    # Sección de Métricas Generales
     st.header("Métricas Generales")
     total_sales, num_orders, avg_order_value, total_commission = calculate_metrics(filtered_df)
     
@@ -309,7 +286,7 @@ if not df.empty:
         st.markdown(f"""
         <div class="metric-box">
             <h3>Número de Órdenes</h3>
-            <p>{num_orders}</p>
+            <p>{num_orders:,}</p>
         </div>
         """, unsafe_allow_html=True)
     with col3:
@@ -327,99 +304,128 @@ if not df.empty:
         </div>
         """, unsafe_allow_html=True)
     
-    # Análisis por cliente
+    # Sección de Análisis de Duplicados
+    st.header("Análisis de Duplicados")
+    duplicates = detect_duplicates(filtered_df)
+    if not duplicates.empty:
+        st.write(f"Se encontraron {len(duplicates)} órdenes duplicadas de 'Almuerzo Ejecutivo Aseavna'.")
+        st.dataframe(duplicates[['Cliente/Nombre', 'Fecha', 'Número de recibo', 'Precio total colaborador']])
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Descargar Duplicados (Excel)", key="download_duplicates_excel"):
+                excel_file = f"duplicados_{uuid.uuid4()}.xlsx"
+                generate_excel(duplicates, excel_file)
+                with open(excel_file, "rb") as f:
+                    st.download_button("Descargar Excel", f, file_name=excel_file)
+        with col2:
+            if st.button("Descargar Duplicados (PDF)", key="download_duplicates_pdf"):
+                pdf_file = f"duplicados_{uuid.uuid4()}.pdf"
+                generate_pdf(duplicates[['Cliente/Nombre', 'Fecha', 'Número de recibo', 'Precio total colaborador']], 
+                            "Reporte de Duplicados", pdf_file)
+                with open(pdf_file, "rb") as f:
+                    st.download_button("Descargar PDF", f, file_name=pdf_file)
+    else:
+        st.write("No se encontraron órdenes duplicadas de 'Almuerzo Ejecutivo Aseavna'.")
+    
+    # Sección de Análisis por Cliente
     st.header("Análisis por Cliente")
     client_data = client_analysis(filtered_df)
-    
     if not client_data.empty:
-        st.dataframe(client_data)
-        
+        st.dataframe(client_data.style.format({'Ventas Totales': '₡{:.2f}', 'Comisión Total': '₡{:.2f}'}))
         avg_sales = client_data['Ventas Totales'].mean()
         unusual_clients = client_data[client_data['Ventas Totales'] > 2 * avg_sales]
-        
         if not unusual_clients.empty:
-            st.write("Clientes con compras inusuales (ventas > 2x promedio):")
-            st.dataframe(unusual_clients)
-        else:
-            st.write("No se encontraron clientes con compras inusuales.")
-        
+            st.subheader("Clientes con Compras Inusuales (Ventas > 2x Promedio)")
+            st.dataframe(unusual_clients.style.format({'Ventas Totales': '₡{:.2f}', 'Comisión Total': '₡{:.2f}'}))
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("Descargar Análisis por Cliente (CSV)", key="download_client_csv"):
+            if st.button("Descargar Análisis (CSV)", key="download_client_csv"):
                 csv = client_data.to_csv(index=False)
-                st.download_button("Descargar CSV", csv, file_name="analisis_clientes.csv", mime="text/csv", key="download_csv_button")
+                st.download_button("Descargar CSV", csv, file_name="analisis_clientes.csv", mime="text/csv")
         with col2:
-            if st.button("Descargar Análisis por Cliente (Excel)", key="download_client_excel"):
+            if st.button("Descargar Análisis (Excel)", key="download_client_excel"):
                 excel_file = f"analisis_clientes_{uuid.uuid4()}.xlsx"
                 generate_excel(client_data, excel_file)
                 with open(excel_file, "rb") as f:
-                    st.download_button("Descargar Excel", f, file_name=excel_file, key="download_client_excel_button")
+                    st.download_button("Descargar Excel", f, file_name=excel_file)
         with col3:
-            if st.button("Descargar Análisis por Cliente (PDF)", key="download_client_pdf"):
+            if st.button("Descargar Análisis (PDF)", key="download_client_pdf"):
                 pdf_file = f"analisis_clientes_{uuid.uuid4()}.pdf"
                 generate_pdf(client_data, "Análisis por Cliente", pdf_file)
                 with open(pdf_file, "rb") as f:
-                    st.download_button("Descargar PDF", f, file_name=pdf_file, key="download_client_pdf_button")
+                    st.download_button("Descargar PDF", f, file_name=pdf_file)
     else:
         st.write("No hay datos de clientes para mostrar.")
     
-    # Visualizaciones
+    # Sección de Visualizaciones
     st.header("Visualizaciones")
-    
-    product_sales = filtered_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().reset_index()
-    product_sales = product_sales.sort_values('Precio total colaborador', ascending=False).head(10)
-    fig1 = px.bar(product_sales, x='Líneas de la orden', y='Precio total colaborador', 
-                  title="Top 10 Productos por Ventas",
-                  labels={'Precio total colaborador': 'Ventas (₡)', 'Líneas de la orden': 'Producto'},
-                  text_auto='.2s')
-    fig1.update_traces(textfont_size=12, textangle=0, textposition="outside", cliponaxis=False)
-    fig1.update_layout(xaxis_tickangle=45)
-    st.plotly_chart(fig1, use_container_width=True)
-    
-    daily_sales = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Precio total colaborador'].sum().reset_index()
-    daily_sales['Fecha'] = pd.to_datetime(daily_sales['Fecha'])
-    fig2 = px.line(daily_sales, x='Fecha', y='Precio total colaborador', 
-                   title="Tendencia Diaria de Ventas",
-                   labels={'Precio total colaborador': 'Ventas (₡)', 'Fecha': 'Fecha'})
-    fig2.update_layout(xaxis_title="Fecha", yaxis_title="Ventas (₡)")
-    st.plotly_chart(fig2, use_container_width=True)
-    
-    group_sales = filtered_df.groupby('Cliente/Nombre principal')['Precio total colaborador'].sum().reset_index()
-    fig3 = px.pie(group_sales, names='Cliente/Nombre principal', values='Precio total colaborador', 
-                  title="Distribución de Ventas por Grupo de Clientes",
-                  labels={'Precio total colaborador': 'Ventas (₡)'})
-    fig3.update_traces(textinfo='percent+label')
-    st.plotly_chart(fig3, use_container_width=True)
-    
-    product_type_sales = filtered_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().reset_index()
-    fig4 = px.pie(product_type_sales, names='Líneas de la orden', values='Precio total colaborador', 
-                  title="Distribución de Ventas por Tipo de Producto",
-                  labels={'Precio total colaborador': 'Ventas (₡)'})
-    fig4.update_traces(textinfo='percent+label')
-    st.plotly_chart(fig4, use_container_width=True)
-    
-    # Análisis predictivo
-    st.header("Análisis Predictivo")
-    predictions_df = predict_sales(daily_sales)
-    
-    if not predictions_df.empty:
-        fig5 = px.line(predictions_df, x='Fecha', y='Ventas Pronosticadas', 
-                       title="Pronóstico de Ventas (7 días)",
-                       labels={'Ventas Pronosticadas': 'Ventas (₡)', 'Fecha': 'Fecha'})
-        fig5.update_layout(xaxis_title="Fecha", yaxis_title="Ventas Pronosticadas (₡)")
-        st.plotly_chart(fig5, use_container_width=True)
+    if not filtered_df.empty:
+        # Top 10 Productos por Ventas
+        product_sales = filtered_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().reset_index()
+        product_sales = product_sales.sort_values('Precio total colaborador', ascending=False).head(10)
+        fig1 = px.bar(product_sales, x='Líneas de la orden', y='Precio total colaborador', 
+                      title="Top 10 Productos por Ventas", 
+                      labels={'Precio total colaborador': 'Ventas (₡)', 'Líneas de la orden': 'Producto'},
+                      text=product_sales['Precio total colaborador'].apply(lambda x: f'₡{x:,.2f}'))
+        fig1.update_traces(textposition='auto')
+        fig1.update_layout(xaxis_title="Producto", yaxis_title="Ventas (₡)", xaxis_tickangle=45)
+        st.plotly_chart(fig1, use_container_width=True)
         
-        top_growth = calculate_product_growth(filtered_df)
-        if not top_growth.empty:
-            st.write("Productos con mayor crecimiento mensual (%):")
-            st.write(top_growth)
-        else:
-            st.warning("No hay suficientes datos mensuales para calcular el crecimiento.")
-    else:
-        st.warning("No hay suficientes datos para realizar predicciones.")
+        # Tendencia Diaria de Ventas
+        daily_sales = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Precio total colaborador'].sum().reset_index()
+        daily_sales['Fecha'] = pd.to_datetime(daily_sales['Fecha'])
+        fig2 = px.line(daily_sales, x='Fecha', y='Precio total colaborador', 
+                       title="Tendencia Diaria de Ventas", 
+                       labels={'Precio total colaborador': 'Ventas (₡)', 'Fecha': 'Fecha'})
+        fig2.update_layout(xaxis_title="Fecha", yaxis_title="Ventas (₡)")
+        st.plotly_chart(fig2, use_container_width=True)
+        
+        # Distribución por Grupo de Clientes
+        group_sales = filtered_df.groupby('Cliente/Nombre principal')['Precio total colaborador'].sum().reset_index()
+        fig3 = px.pie(group_sales, names='Cliente/Nombre principal', values='Precio total colaborador', 
+                      title="Distribución de Ventas por Grupo de Clientes", 
+                      labels={'Precio total colaborador': 'Ventas (₡)'})
+        fig3.update_traces(textinfo='percent+label')
+        st.plotly_chart(fig3, use_container_width=True)
+        
+        # Distribución por Tipo de Producto
+        product_type_sales = filtered_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().reset_index()
+        fig4 = px.pie(product_type_sales, names='Líneas de la orden', values='Precio total colaborador', 
+                      title="Distribución de Ventas por Tipo de Producto", 
+                      labels={'Precio total colaborador': 'Ventas (₡)'})
+        fig4.update_traces(textinfo='percent+label')
+        st.plotly_chart(fig4, use_container_width=True)
     
-    if st.checkbox("Mostrar datos crudos", key="show_raw_data"):
+    # Sección de Análisis Predictivo
+    st.header("Análisis Predictivo")
+    if not filtered_df.empty:
+        daily_sales = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Precio total colaborador'].sum().reset_index()
+        daily_sales['Fecha'] = pd.to_datetime(daily_sales['Fecha'])
+        predictions_df = predict_sales(daily_sales)
+        if not predictions_df.empty:
+            fig5 = px.line(predictions_df, x='Fecha', y='Ventas Pronosticadas', 
+                           title="Pronóstico de Ventas (7 días)", 
+                           labels={'Ventas Pronosticadas': 'Ventas (₡)', 'Fecha': 'Fecha'})
+            fig5.update_layout(xaxis_title="Fecha", yaxis_title="Ventas Pronosticadas (₡)")
+            st.plotly_chart(fig5, use_container_width=True)
+            
+            top_growth = calculate_product_growth(filtered_df)
+            if not top_growth.empty:
+                st.subheader("Productos con Mayor Crecimiento Mensual (%)")
+                st.write(top_growth)
+            else:
+                st.warning("No hay suficientes datos mensuales para calcular el crecimiento.")
+        else:
+            st.warning("No hay suficientes datos para realizar predicciones.")
+    else:
+        st.warning("No hay datos filtrados para realizar predicciones.")
+    
+    # Sección de Datos Crudos
+    if st.checkbox("Mostrar Datos Crudos", key="show_raw_data"):
         st.header("Datos Filtrados")
-        st.dataframe(filtered_df)
+        st.dataframe(filtered_df.style.format({
+            'Precio total colaborador': '₡{:.2f}',
+            'Comision Aseavna': '₡{:.2f}'
+        }))
 else:
-    st.error("No se pudieron cargar los datos. Verifica que el archivo esté en el directorio correcto o cárgalo manualmente usando el selector de archivos.")
+    st.error("No se pudieron cargar los datos. Por favor, carga el archivo 'Órdenes del punto de venta (pos.order).xlsx' usando el selector de archivos.")
