@@ -106,28 +106,24 @@ def load_data():
         return df
 
     def add_day_of_week(df):
-        # Cargar el DataFrame completo para depuración
         original_rows = len(df)
         st.sidebar.write(f"Filas cargadas inicialmente del archivo Excel: {original_rows}")
 
-        # Convertir fechas con manejo explícito de formatos y errores
         if pd.api.types.is_numeric_dtype(df['Fecha']):
             df['Fecha'] = pd.to_datetime(df['Fecha'], unit='D', origin='1899-12-30', errors='coerce') - timedelta(days=2)
         else:
             df['Fecha'] = pd.to_datetime(df['Fecha'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
         
-        # Identificar filas con fechas no válidas
         df['Fecha_Valida'] = df['Fecha'].notna()
         invalid_dates = df['Fecha'].isna().sum()
         if invalid_dates > 0:
             st.warning(f"Se encontraron {invalid_dates} fechas no válidas que se excluirán del análisis.")
         
-        # Verificar duplicados
         duplicates = df.duplicated().sum()
         if duplicates > 0:
             st.warning(f"Se encontraron {duplicates} filas duplicadas en el archivo Excel.")
         
-        df = df.dropna(subset=['Fecha'])  # Eliminar filas con fechas no válidas para el análisis
+        df = df.dropna(subset=['Fecha'])
         st.sidebar.write(f"Filas después de eliminar fechas no válidas: {len(df)}")
 
         df['Día de la Semana'] = df['Fecha'].dt.day_name()
@@ -310,7 +306,6 @@ lang_code = 'es' if language == "Español" else 'en'
 # Mostrar el logo
 st.markdown('<div class="logo-container">', unsafe_allow_html=True)
 try:
-    # Verificar si el archivo existe antes de cargarlo
     import os
     if os.path.exists("app/data/logo.png"):
         st.image("app/data/logo.png", use_container_width=False, width=200)
@@ -360,7 +355,6 @@ else:
         )
 
     with st.sidebar.expander("Filtros de Categorías"):
-        # Generar opciones de filtros dinámicamente basadas en df
         product_types = ['Todos'] + sorted(df['Líneas de la orden'].dropna().astype(str).unique().tolist())
         selected_product = st.selectbox(TRANSLATIONS[lang_code]['product_type'], product_types, key="product")
         
@@ -372,22 +366,24 @@ else:
         
         clients = ['Todos'] + sorted(df['Cliente/Nombre'].dropna().astype(str).unique().tolist())
         selected_client = st.selectbox(TRANSLATIONS[lang_code]['specific_client'], clients, key="client")
+        
+        centros_costos = ['Todos'] + sorted(df['Centro de Costos Aseavna'].dropna().astype(str).unique().tolist())
+        selected_centro = st.selectbox("Centro de Costos", centros_costos, key="centro_costos")
 
     if st.sidebar.button(TRANSLATIONS[lang_code]['reset_filters']):
         st.experimental_rerun()
 
     # Aplicar filtros
     filtered_df = df.copy()
-    total_lines = len(filtered_df)  # Número total de líneas antes de filtrar por fechas
+    total_lines = len(filtered_df)
     if len(date_range) == 2:
         sd, ed = date_range
         sd = pd.to_datetime(sd)
-        ed = pd.to_datetime(ed) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)  # Incluir todo el día final
+        ed = pd.to_datetime(ed) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
         filtered_df = filtered_df[
             (filtered_df['Fecha'] >= sd) &
             (filtered_df['Fecha'] <= ed)
         ]
-        # Depuración: mostrar el número de filas y órdenes después de aplicar el filtro de fechas
         st.sidebar.write(f"Filas totales antes del filtro: {total_lines}")
         st.sidebar.write(f"Filas después de filtrar por fechas ({sd.date()} a {ed.date()}): {len(filtered_df)}")
         st.sidebar.write(f"Órdenes únicas después del filtro: {filtered_df['Número de recibo'].nunique()}")
@@ -402,14 +398,16 @@ else:
         filtered_df = filtered_df[filtered_df['Día de la Semana'] == selected_day]
     if selected_client != 'Todos':
         filtered_df = filtered_df[filtered_df['Cliente/Nombre'] == selected_client]
+    if selected_centro != 'Todos':
+        filtered_df = filtered_df[filtered_df['Centro de Costos Aseavna'] == selected_centro]
 
-    # Actualizar filtros dinámicos después de aplicar los primeros filtros
     product_types = ['Todos'] + sorted(filtered_df['Líneas de la orden'].dropna().astype(str).unique().tolist())
     client_groups = ['Todos'] + sorted(filtered_df['Cliente/Nombre principal'].dropna().astype(str).unique().tolist())
     days_of_week = ['Todos'] + sorted(filtered_df['Día de la Semana'].dropna().astype(str).unique().tolist())
     clients = ['Todos'] + sorted(filtered_df['Cliente/Nombre'].dropna().astype(str).unique().tolist())
+    centros_costos = ['Todos'] + sorted(filtered_df['Centro de Costos Aseavna'].dropna().astype(str).unique().tolist())
 
-    # Panel de métricas principales (basado en filtered_df)
+    # Panel de métricas principales
     st.subheader(TRANSLATIONS[lang_code]['metrics_summary'])
     col1, col2, col3, col4, col5 = st.columns(5)
     total_orders = filtered_df['Número de recibo'].nunique()
@@ -634,8 +632,16 @@ else:
     # Tab 5: Visualizaciones Detalladas
     with tab5:
         st.header(TRANSLATIONS[lang_code]['visualizations'])
-        top10 = filtered_df.groupby('Líneas de la orden')['Total'].sum().nlargest(10).reset_index()
+        # Filtrar por Centro de Costos para visualizaciones
+        viz_df = filtered_df.copy()
+        if selected_centro != 'Todos':
+            viz_df = viz_df[viz_df['Centro de Costos Aseavna'] == selected_centro]
+        
+        # Top 10 Productos por Ventas con validación de datos
+        top10 = viz_df.groupby('Líneas de la orden')['Total'].sum().nlargest(10).reset_index()
         if not top10.empty:
+            # Asegurar que los valores sean realistas (ejemplo: capear valores extremos)
+            top10['Total'] = top10['Total'].clip(upper=1000000)  # Límite máximo realista de 1M como ejemplo
             fig1 = px.bar(
                 top10, x='Líneas de la orden', y='Total',
                 title=TRANSLATIONS[lang_code]['top_products'],
@@ -655,7 +661,7 @@ else:
         else:
             st.warning("No hay datos suficientes para mostrar los top 10 productos.")
 
-        daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index()
+        daily_summary = viz_df.groupby(viz_df['Fecha'].dt.date)['Total'].sum().reset_index()
         if not daily_summary.empty:
             fig2 = px.line(
                 x=pd.to_datetime(daily_summary['Fecha']),
@@ -674,7 +680,7 @@ else:
         else:
             st.warning("No hay datos suficientes para mostrar la tendencia diaria.")
         
-        grp = filtered_df.groupby('Cliente/Nombre principal')['Total'].sum().reset_index()
+        grp = viz_df.groupby('Cliente/Nombre principal')['Total'].sum().reset_index()
         if not grp.empty:
             fig3 = px.pie(
                 grp, names='Cliente/Nombre principal', values='Total',
