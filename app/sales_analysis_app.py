@@ -25,8 +25,9 @@ st.markdown("""
     .stButton>button {background-color: #4CAF50; color: white; border-radius: 5px;}
     .stSidebar {background-color: #e8ecef;}
     h1, h2, h3 {color: #2c3e50;}
-    .metric-box {border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white;}
+    .metric-box {border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0;}
     .alert-box {background-color: #ffeb3b; padding: 10px; border-radius: 5px; margin: 10px 0;}
+    .stMetric {font-size: 18px;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -84,6 +85,19 @@ def load_data(uploaded_file):
         df['Comision'] = pd.to_numeric(df['Comision'], errors='coerce').fillna(0)
         df['Cuentas por a cobrar aseavna'] = pd.to_numeric(df['Cuentas por a cobrar aseavna'], errors='coerce').fillna(0)
         df['Cuentas por a Cobrar Avna'] = pd.to_numeric(df['Cuentas por a Cobrar Avna'], errors='coerce').fillna(0)
+        
+        # Depuración: Mostrar las primeras filas de las columnas numéricas
+        st.write("Primeras filas de columnas numéricas después de limpieza:")
+        st.write(df[['Total', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']].head())
+        
+        # Depuración: Mostrar sumas antes de filtros
+        st.write("Sumas totales antes de aplicar filtros:")
+        st.write({
+            "Total (Precio total colaborador)": df['Total'].sum(),
+            "Comision (Comision Aseavna)": df['Comision'].sum(),
+            "Cuentas por a cobrar aseavna": df['Cuentas por a cobrar aseavna'].sum(),
+            "Cuentas por a Cobrar Avna": df['Cuentas por a Cobrar Avna'].sum()
+        })
         
         # Añadir día de la semana sin depender del locale
         df['Día de la Semana'] = df['Fecha'].dt.day_name()
@@ -267,11 +281,11 @@ else:
         st.markdown('</div>', unsafe_allow_html=True)
     with col5:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric("Cuentas por Cobrar Aseavna", f"₡{total_cuentas_cobrar_aseavna:,.2f}")
+        st.metric("Ctas. por Cobrar Aseavna", f"₡{total_cuentas_cobrar_aseavna:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
     with col1:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric("Cuentas por Cobrar Avna", f"₡{total_cuentas_cobrar_avna:,.2f}")
+        st.metric("Ctas. por Cobrar Avna", f"₡{total_cuentas_cobrar_avna:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Análisis de Ventas por Cliente
@@ -289,8 +303,8 @@ else:
         'Ventas Totales (₡)',
         'Número de Órdenes',
         'Comisión Total (₡)',
-        'Cuentas por Cobrar Aseavna (₡)',
-        'Cuentas por Cobrar Avna (₡)',
+        'Ctas. por Cobrar Aseavna (₡)',
+        'Ctas. por Cobrar Avna (₡)',
         'Producto Más Comprado'
     ]
     
@@ -418,8 +432,8 @@ else:
         "Número de Órdenes": num_orders,
         "Valor Promedio por Orden (₡)": avg_order_value,
         "Comisión Total (₡)": total_commission,
-        "Cuentas por Cobrar Aseavna (₡)": total_cuentas_cobrar_aseavna,
-        "Cuentas por Cobrar Avna (₡)": total_cuentas_cobrar_avna,
+        "Ctas. por Cobrar Aseavna (₡)": total_cuentas_cobrar_aseavna,
+        "Ctas. por Cobrar Avna (₡)": total_cuentas_cobrar_avna,
         "Clientes Únicos": len(clients) - 1,
         "Producto Más Vendido": most_sold,
         "Producto Menos Vendido": least_sold
