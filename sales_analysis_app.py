@@ -12,6 +12,28 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 import statsmodels.api as sm
 import os
+import plotly.io as pio
+
+# Función auxiliar para generar botones de descarga y reset de gráficas
+def add_graph_controls(fig, fig_name):
+    col1, col2 = st.columns(2)
+    with col1:
+        # Botón de descarga como PNG
+        img_bytes = pio.to_image(fig, format="png", scale=2)
+        st.download_button(
+            label="Descargar Gráfica (PNG)",
+            data=img_bytes,
+            file_name=f"{fig_name}.png",
+            mime="image/png"
+        )
+    with col2:
+        # Botón para restablecer zoom/vista
+        if st.button("Restablecer Vista", key=f"reset_{fig_name}"):
+            fig.update_layout(
+                xaxis=dict(autorange=True),
+                yaxis=dict(autorange=True)
+            )
+            st.rerun()
 
 # Funciones auxiliares
 def generate_pdf(data: pd.DataFrame, title: str, filename: str, _data_hash: str) -> io.BytesIO:
@@ -223,7 +245,7 @@ TRANSLATIONS = {
         'no_monthly_data': 'No hay suficientes datos mensuales para calcular el crecimiento de productos (se requieren al menos dos meses).',
         'predictive_error': 'Error en el análisis predictivo: {error}',
         'top_products': 'Top 10 Productos por Ingresos',
-        'daily_trend': 'Tendencia Diaria de Ingresos',
+        '/yyyy-MM-ddaily_trend': 'Tendencia Diaria de Ingresos',
         'sales_by_group': 'Ingresos por Grupo de Clientes',
         'export_summary': 'Exportar Resumen de Métricas',
         'download_summary_csv': 'Descargar Resumen (CSV)',
@@ -310,6 +332,9 @@ h1, h2, h3 {{color: {CONFIG['colors']['secondary']}; text-align: center;}}
     .metric-box {{width: 95%; padding: 8px;}}
     .metric-box .title {{font-size: 9px;}}
     .metric-box .value {{font-size: 12px;}}
+    .plotly-graph-div {{width: 100% !important; height: auto !important;}}
+    .modebar {{display: block !important;}}
+    .stButton>button {{font-size: 12px; padding: 8px;}}
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -479,9 +504,29 @@ else:
                 margin=dict(l=20, r=20, t=60, b=20),
                 xaxis_title_font_size=14,
                 yaxis_title_font_size=14,
-                title_x=0.5
+                title_x=0.5,
+                showlegend=True,
+                xaxis=dict(tickformat="%Y-%m-%d", gridcolor='lightgray'),
+                yaxis=dict(gridcolor='lightgray'),
+                dragmode='zoom',  # Habilitar zoom
+                modebar=dict(
+                    bgcolor='rgba(0,0,0,0)',
+                    color='rgba(0,0,0,0.5)',
+                    activecolor=CONFIG['colors']['primary']
+                )
+            )
+            fig_summary.update_xaxes(
+                rangeslider_visible=True,  # Agregar control deslizante para zoom
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=7, label="1w", step="day", stepmode="backward"),
+                        dict(count=1, label="1m", step="month", stepmode="backward"),
+                        dict(step="all", label="Todo")
+                    ])
+                )
             )
             st.plotly_chart(fig_summary, use_container_width=True)
+            add_graph_controls(fig_summary, "daily_sales")
         else:
             st.warning("No hay datos suficientes para mostrar la tendencia diaria.")
 
@@ -681,9 +726,26 @@ else:
                             y=-0.3,
                             xanchor="center",
                             x=0.5
+                        ),
+                        dragmode='zoom',  # Habilitar zoom
+                        modebar=dict(
+                            bgcolor='rgba(0,0,0,0)',
+                            color='rgba(0,0,0,0.5)',
+                            activecolor=CONFIG['colors']['primary']
+                        )
+                    )
+                    fig_pred.update_xaxes(
+                        rangeslider_visible=True,  # Agregar control deslizante para zoom
+                        rangeselector=dict(
+                            buttons=list([
+                                dict(count=7, label="1w", step="day", stepmode="backward"),
+                                dict(count=1, label="1m", step="month", stepmode="backward"),
+                                dict(step="all", label="Todo")
+                            ])
                         )
                     )
                     st.plotly_chart(fig_pred, use_container_width=True)
+                    add_graph_controls(fig_pred, "predictive_trend")
                     
                     # Análisis de crecimiento de productos basado en ingresos (Total Final)
                     trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total Final'].sum().unstack(fill_value=0)
@@ -725,10 +787,17 @@ else:
                 yaxis_title_font_size=14,
                 title_x=0.5,
                 showlegend=False,
-                xaxis=dict(tickmode='linear'),
-                yaxis=dict(gridcolor='lightgray')
+                xaxis=dict(tickmode='linear', gridcolor='lightgray'),
+                yaxis=dict(gridcolor='lightgray'),
+                dragmode='zoom',  # Habilitar zoom
+                modebar=dict(
+                    bgcolor='rgba(0,0,0,0)',
+                    color='rgba(0,0,0,0.5)',
+                    activecolor=CONFIG['colors']['primary']
+                )
             )
             st.plotly_chart(fig1, use_container_width=True)
+            add_graph_controls(fig1, "top_products")
         else:
             st.warning("No hay datos suficientes o válidos para mostrar los top 10 productos por ingresos.")
 
@@ -750,9 +819,26 @@ else:
                 yaxis_title_font_size=14,
                 title_x=0.5,
                 xaxis=dict(tickformat="%Y-%m-%d", gridcolor='lightgray'),
-                yaxis=dict(gridcolor='lightgray')
+                yaxis=dict(gridcolor='lightgray'),
+                dragmode='zoom',  # Habilitar zoom
+                modebar=dict(
+                    bgcolor='rgba(0,0,0,0)',
+                    color='rgba(0,0,0,0.5)',
+                    activecolor=CONFIG['colors']['primary']
+                )
+            )
+            fig2.update_xaxes(
+                rangeslider_visible=True,  # Agregar control deslizante para zoom
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=7, label="1w", step="day", stepmode="backward"),
+                        dict(count=1, label="1m", step="month", stepmode="backward"),
+                        dict(step="all", label="Todo")
+                    ])
+                )
             )
             st.plotly_chart(fig2, use_container_width=True)
+            add_graph_controls(fig2, "daily_trend")
         else:
             st.warning("No hay datos suficientes o válidos para mostrar la tendencia diaria de ingresos.")
 
@@ -768,28 +854,36 @@ else:
                 template="plotly_white",
                 color_discrete_sequence=px.colors.sequential.Viridis
             )
-            # Ajustar el espaciado y las etiquetas para evitar superposición y moverlas a los lados
+            # Ajustar el espaciado y las etiquetas para evitar superposición
             fig3.update_traces(
                 textinfo='percent+label',
                 pull=[0.1 if i == 0 else 0 for i in range(len(grp))],  # Separar ligeramente la primera sección
-                textposition='auto',  # Permitir que Plotly ajuste automáticamente la posición (izquierda/derecha)
+                textposition='auto',  # Permitir que Plotly ajuste automáticamente la posición
                 textfont=dict(size=10),  # Reducir tamaño de fuente para mejor ajuste
                 insidetextorientation='radial'  # Asegurar que el texto no interfiera con el círculo
             )
             fig3.update_layout(
-                margin=dict(l=100, r=100, t=80, b=100),  # Aumentar márgenes laterales para dar espacio a etiquetas
+                margin=dict(l=40, r=150, t=80, b=40),  # Más espacio a la derecha para la leyenda
                 title_x=0.5,
                 legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=-0.3,
-                    xanchor="center",
-                    x=0.5
+                    orientation="v",  # Leyenda vertical
+                    x=1.1,  # Colocar a la derecha
+                    y=0.5,
+                    xanchor="left",
+                    yanchor="middle",
+                    font=dict(size=10)
                 ),
                 height=600,
-                width=1000  # Aumentar ancho para dar más espacio lateral
+                width=800,  # Reducir ancho para dejar espacio a la leyenda
+                dragmode=False,  # Desactivar drag para evitar interacciones accidentales
+                modebar=dict(
+                    bgcolor='rgba(0,0,0,0)',
+                    color='rgba(0,0,0,0.5)',
+                    activecolor=CONFIG['colors']['primary']
+                )
             )
             st.plotly_chart(fig3, use_container_width=True)
+            add_graph_controls(fig3, "sales_by_group")
         else:
             st.warning("No hay datos suficientes o válidos para mostrar los ingresos por grupo de clientes.")
 
