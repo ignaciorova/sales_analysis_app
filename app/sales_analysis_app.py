@@ -12,15 +12,16 @@ import xlsxwriter
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import uuid
+import io
 
 # Configuración inicial
 st.set_page_config(page_title="Dashboard de Ventas ASEAVNA", layout="wide")
 try:
     locale.setlocale(locale.LC_TIME, 'es_ES')
 except:
-    locale.setlocale(locale.LC_TIME, '')  # Fallback si es_ES no está disponible
+    locale.setlocale(locale.LC_TIME, '')
 
-# Estilos CSS para mejorar la apariencia
+# Estilos CSS
 st.markdown("""
 <style>
 .metric-box {
@@ -49,14 +50,17 @@ st.markdown("""
 
 # Función para cargar y limpiar datos
 @st.cache_data
-def load_data(file_path):
+def load_data(file, file_name=None):
     """
-    Carga y limpia el archivo de datos Excel.
+    Carga y limpia el archivo de datos Excel desde un path o un objeto de archivo cargado.
     """
     try:
-        if not os.path.exists(file_path):
-            raise FileNotFoundError("El archivo no se encuentra en el directorio.")
-        df = pd.read_excel(file_path)
+        if isinstance(file, str):
+            if not os.path.exists(file):
+                raise FileNotFoundError(f"El archivo {file} no se encuentra en el directorio {os.getcwd()}")
+            df = pd.read_excel(file)
+        else:
+            df = pd.read_excel(file, engine='openpyxl')
         # Convertir fecha serial de Excel a datetime
         df['Fecha'] = pd.to_datetime(df['Fecha'], origin='1899-12-30', unit='D', errors='coerce')
         # Limpieza de datos
@@ -74,9 +78,6 @@ def load_data(file_path):
 
 # Función para calcular métricas
 def calculate_metrics(df):
-    """
-    Calcula métricas generales: ventas totales, número de órdenes, promedio por orden, comisiones.
-    """
     if df.empty:
         return 0, 0, 0, 0
     total_sales = df['Precio total colaborador'].sum()
@@ -87,15 +88,11 @@ def calculate_metrics(df):
 
 # Función para generar PDF
 def generate_pdf(data, title, filename):
-    """
-    Genera un archivo PDF con los datos proporcionados.
-    """
     try:
         doc = SimpleDocTemplate(filename, pagesize=letter)
         elements = []
         styles = getSampleStyleSheet()
         elements.append(Paragraph(title, styles['Heading1']))
-        # Convertir columnas a strings para evitar problemas de formato
         data = data.astype(str)
         table_data = [data.columns.tolist()] + data.values.tolist()
         table = Table(table_data)
@@ -117,9 +114,6 @@ def generate_pdf(data, title, filename):
 
 # Función para generar Excel
 def generate_excel(data, filename):
-    """
-    Genera un archivo Excel con los datos proporcionados.
-    """
     try:
         with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
             data.to_excel(writer, index=False, sheet_name='Reporte')
@@ -132,18 +126,12 @@ def generate_excel(data, filename):
 
 # Función para detectar duplicados
 def detect_duplicates(df):
-    """
-    Detecta órdenes duplicadas de Almuerzo Ejecutivo por cliente y fecha.
-    """
     duplicates = df[df['Líneas de la orden'] == 'Almuerzo Ejecutivo Aseavna']
     duplicates = duplicates[duplicates.duplicated(subset=['Cliente/Nombre', 'Fecha'], keep=False)]
     return duplicates
 
 # Función para análisis por cliente
 def client_analysis(df):
-    """
-    Genera un análisis por cliente: ventas, órdenes, comisiones, producto más comprado.
-    """
     if df.empty:
         return pd.DataFrame(columns=['Cliente', 'Ventas Totales', 'Número de Órdenes', 'Comisión Total', 'Producto Más Comprado'])
     analysis = df.groupby('Cliente/Nombre').agg({
@@ -157,9 +145,6 @@ def client_analysis(df):
 
 # Función para predicciones de ventas
 def predict_sales(daily_sales):
-    """
-    Realiza predicciones de ventas para los próximos 7 días usando regresión lineal.
-    """
     if len(daily_sales) < 2:
         return pd.DataFrame()
     X = np.arange(len(daily_sales)).reshape(-1, 1)
@@ -174,9 +159,6 @@ def predict_sales(daily_sales):
 
 # Función para calcular crecimiento de productos
 def calculate_product_growth(df):
-    """
-    Calcula el crecimiento porcentual de productos por mes.
-    """
     df['Mes'] = df['Fecha'].dt.to_period('M')
     trends = df.pivot_table(values='Precio total colaborador', 
                            index='Líneas de la orden', 
@@ -188,10 +170,24 @@ def calculate_product_growth(df):
         return growth.sort_values(ascending=False).head(5)
     return pd.Series()
 
-# Carga de datos
-file_path = "Órdenes del punto de venta (pos.order).xlsx"
-df = load_data(file_path)
+# Mostrar directorio de trabajo actual
+st.write(f"**Directorio de trabajo actual**: {os.getcwd()}")
 
+# Intento de carga automática del archivo
+file_path = "Órdenes del punto de venta (pos.order).xlsx"
+df = pd.DataFrame()
+
+if os.path.exists(file_path):
+    df = load_data(file_path)
+else:
+    st.warning(f"El archivo {file_path} no se encuentra en el directorio {os.getcwd()}. Por favor, carga el archivo manualmente.")
+
+# Selector de archivo manual
+uploaded_file = st.file_uploader("Carga el archivo Excel (.xlsx)", type=["xlsx"], key="file_uploader")
+if uploaded_file is not None:
+    df = load_data(uploaded_file, uploaded_file.name)
+
+# Procesar datos si se cargaron correctamente
 if not df.empty:
     # Sidebar con filtros
     st.sidebar.header("Filtros")
@@ -253,7 +249,6 @@ if not df.empty:
         st.write(f"Se encontraron {len(duplicates)} órdenes duplicadas de Almuerzo Ejecutivo.")
         st.dataframe(duplicates[['Cliente/Nombre', 'Fecha', 'Número de recibo', 'Precio total colaborador', 'Líneas de la orden']])
         
-        # Exportar duplicados
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Descargar Duplicados (Excel)", key="download_duplicates_excel"):
@@ -312,7 +307,6 @@ if not df.empty:
     if not client_data.empty:
         st.dataframe(client_data)
         
-        # Clientes con compras inusuales
         avg_sales = client_data['Ventas Totales'].mean()
         unusual_clients = client_data[client_data['Ventas Totales'] > 2 * avg_sales]
         
@@ -322,7 +316,6 @@ if not df.empty:
         else:
             st.write("No se encontraron clientes con compras inusuales.")
         
-        # Exportar análisis por cliente
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("Descargar Análisis por Cliente (CSV)", key="download_client_csv"):
@@ -346,7 +339,6 @@ if not df.empty:
     # Visualizaciones
     st.header("Visualizaciones")
     
-    # Top 10 productos por ventas
     product_sales = filtered_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().reset_index()
     product_sales = product_sales.sort_values('Precio total colaborador', ascending=False).head(10)
     fig1 = px.bar(product_sales, x='Líneas de la orden', y='Precio total colaborador', 
@@ -357,7 +349,6 @@ if not df.empty:
     fig1.update_layout(xaxis_tickangle=45)
     st.plotly_chart(fig1, use_container_width=True)
     
-    # Tendencia diaria de ventas
     daily_sales = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Precio total colaborador'].sum().reset_index()
     daily_sales['Fecha'] = pd.to_datetime(daily_sales['Fecha'])
     fig2 = px.line(daily_sales, x='Fecha', y='Precio total colaborador', 
@@ -366,7 +357,6 @@ if not df.empty:
     fig2.update_layout(xaxis_title="Fecha", yaxis_title="Ventas (₡)")
     st.plotly_chart(fig2, use_container_width=True)
     
-    # Distribución de ventas por grupo de clientes
     group_sales = filtered_df.groupby('Cliente/Nombre principal')['Precio total colaborador'].sum().reset_index()
     fig3 = px.pie(group_sales, names='Cliente/Nombre principal', values='Precio total colaborador', 
                   title="Distribución de Ventas por Grupo de Clientes",
@@ -374,7 +364,6 @@ if not df.empty:
     fig3.update_traces(textinfo='percent+label')
     st.plotly_chart(fig3, use_container_width=True)
     
-    # Distribución de ventas por tipo de producto
     product_type_sales = filtered_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().reset_index()
     fig4 = px.pie(product_type_sales, names='Líneas de la orden', values='Precio total colaborador', 
                   title="Distribución de Ventas por Tipo de Producto",
@@ -393,7 +382,6 @@ if not df.empty:
         fig5.update_layout(xaxis_title="Fecha", yaxis_title="Ventas Pronosticadas (₡)")
         st.plotly_chart(fig5, use_container_width=True)
         
-        # Crecimiento de productos
         top_growth = calculate_product_growth(filtered_df)
         if not top_growth.empty:
             st.write("Productos con mayor crecimiento mensual (%):")
@@ -403,9 +391,8 @@ if not df.empty:
     else:
         st.warning("No hay suficientes datos para realizar predicciones.")
     
-    # Mostrar datos crudos
     if st.checkbox("Mostrar datos crudos", key="show_raw_data"):
         st.header("Datos Filtrados")
         st.dataframe(filtered_df)
 else:
-    st.error("No se pudieron cargar los datos. Verifica que el archivo esté en el directorio correcto y tenga el formato esperado.")
+    st.error("No se pudieron cargar los datos. Verifica que el archivo esté en el directorio correcto o cárgalo manualmente usando el selector de archivos.")
