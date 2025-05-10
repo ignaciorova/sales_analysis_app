@@ -755,7 +755,7 @@ else:
         with c2:
             buf_xl3 = generate_excel(report_df, "Resumen", report_df.to_string())
             st.download_button(
-                TRANSLATIONS[lang_code]['developed by Wilfredos for ASEAVNA | Data Source: Point of Sale (POS) Orders | 2025download_summary_excel'],
+                TRANSLATIONS[lang_code]['download_summary_excel'],
                 data=buf_xl3,
                 file_name="resumen_ventas_aseavna.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
