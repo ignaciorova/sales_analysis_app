@@ -10,3 +10,4 @@ streamlit-aggrid==0.3.4.post3
 extra-streamlit-components==0.1.80
 python-decouple==3.8
 python-dotenv==1.0.1
+streamlit-aggrid==0.3.4.post3
