@@ -594,64 +594,101 @@ else:
             daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total Final'].sum().reset_index(name='Total')
             daily['Days'] = (pd.to_datetime(daily['Fecha']) - pd.to_datetime(daily['Fecha'].min())).dt.days
             
-            if len(daily) > 1:
-                # Modelo de regresión lineal para predecir ingresos futuros
-                X = sm.add_constant(daily['Days'])
-                model = sm.OLS(daily['Total'], X).fit()
-                future_days = np.array([daily['Days'].iloc[-1] + i for i in range(1, 8)])
-                future_X = sm.add_constant(future_days)
-                preds = model.predict(future_X)
-                conf_int = model.get_prediction(future_X).conf_int()
-                
-                pred_df = pd.DataFrame({
-                    'Fecha': [pd.to_datetime(daily['Fecha']).max() + timedelta(days=i) for i in range(1, 8)],
-                    'Total': preds,
-                    'Lower': conf_int[:, 0],
-                    'Upper': conf_int[:, 1],
-                    'Tipo': 'Predicción'
-                })
-                hist_df = pd.DataFrame({
-                    'Fecha': pd.to_datetime(daily['Fecha']),
-                    'Total': daily['Total'],
-                    'Tipo': 'Histórico'
-                })
-                combined = pd.concat([hist_df, pred_df])
-                
-                # Gráfica de predicción de ingresos
-                st.subheader(TRANSLATIONS[lang_code]['predictive_subheader'])
-                fig_pred = px.line(
-                    combined, x='Fecha', y='Total', color='Tipo',
-                    labels={'Total': 'Ingresos Totales (₡)', 'Fecha': 'Fecha'},
-                    title="Tendencia Histórica y Predicción de Ingresos Totales con Intervalos de Confianza",
-                    template="plotly_white",
-                    color_discrete_sequence=["#4CAF50", "#FF5733"]
-                )
-                fig_pred.add_scatter(
-                    x=pred_df['Fecha'], y=pred_df['Upper'], mode='lines', line=dict(dash='dash', color='gray'), name='Límite Superior'
-                )
-                fig_pred.add_scatter(
-                    x=pred_df['Fecha'], y=pred_df['Lower'], mode='lines', line=dict(dash='dash', color='gray'), name='Límite Inferior'
-                )
-                fig_pred.update_layout(
-                    margin=dict(l=20, r=20, t=60, b=20),
-                    xaxis_title_font_size=14,
-                    yaxis_title_font_size=14,
-                    title_x=0.5
-                )
-                st.plotly_chart(fig_pred, use_container_width=True)
-                
-                # Análisis de crecimiento de productos basado en ingresos (Total Final)
-                trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total Final'].sum().unstack(fill_value=0)
-                if trends.shape[1] >= 2:
-                    growth = ((trends.iloc[:, -1] - trends.iloc[:, -2]) / trends.iloc[:, -2].replace(0, np.nan) * 100).replace([np.inf, -np.inf], 0).dropna().sort_values(ascending=False)
-                    top5 = growth.head(5).reset_index()
-                    top5.columns = ['Producto', 'Crecimiento (%)']
-                    st.subheader(TRANSLATIONS[lang_code]['growth_subheader'])
-                    st.dataframe(top5)
-                else:
-                    st.warning(TRANSLATIONS[lang_code]['no_monthly_data'])
-            else:
+            # Validar que haya suficientes datos para la predicción
+            if len(daily) < 2:
                 st.warning(TRANSLATIONS[lang_code]['no_predictive_data'])
+            else:
+                # Asegurar que no haya valores nulos en 'Total'
+                daily = daily.dropna(subset=['Total'])
+                if daily.empty:
+                    st.warning("No hay datos válidos para realizar la predicción.")
+                else:
+                    # Modelo de regresión lineal para predecir ingresos futuros
+                    X = sm.add_constant(daily['Days'])
+                    model = sm.OLS(daily['Total'], X).fit()
+                    future_days = np.array([daily['Days'].iloc[-1] + i for i in range(1, 8)])
+                    future_X = sm.add_constant(future_days)
+                    preds = model.predict(future_X)
+                    conf_int = model.get_prediction(future_X).conf_int()
+                    
+                    # Crear DataFrame de predicciones con intervalos de confianza
+                    pred_df = pd.DataFrame({
+                        'Fecha': [pd.to_datetime(daily['Fecha']).max() + timedelta(days=i) for i in range(1, 8)],
+                        'Total': preds,
+                        'Lower': np.maximum(conf_int[:, 0], 0),  # Evitar valores negativos
+                        'Upper': np.maximum(conf_int[:, 1], 0),  # Evitar valores negativos
+                        'Tipo': 'Predicción'
+                    })
+                    hist_df = pd.DataFrame({
+                        'Fecha': pd.to_datetime(daily['Fecha']),
+                        'Total': daily['Total'],
+                        'Tipo': 'Histórico'
+                    })
+                    combined = pd.concat([hist_df, pred_df]).reset_index(drop=True)
+                    
+                    # Gráfica de predicción de ingresos
+                    st.subheader(TRANSLATIONS[lang_code]['predictive_subheader'])
+                    fig_pred = px.line(
+                        combined, 
+                        x='Fecha', 
+                        y='Total', 
+                        color='Tipo',
+                        labels={'Total': 'Ingresos Totales (₡)', 'Fecha': 'Fecha'},
+                        title="Tendencia Histórica y Predicción de Ingresos Totales con Intervalos de Confianza",
+                        template="plotly_white",
+                        color_discrete_sequence=["#4CAF50", "#FF5733"]
+                    )
+                    # Añadir intervalos de confianza
+                    fig_pred.add_scatter(
+                        x=pred_df['Fecha'], 
+                        y=pred_df['Upper'], 
+                        mode='lines', 
+                        line=dict(dash='dash', color='gray'), 
+                        name='Límite Superior',
+                        showlegend=True
+                    )
+                    fig_pred.add_scatter(
+                        x=pred_df['Fecha'], 
+                        y=pred_df['Lower'], 
+                        mode='lines', 
+                        line=dict(dash='dash', color='gray'), 
+                        name='Límite Inferior',
+                        showlegend=True
+                    )
+                    # Personalizar el formato del eje Y para mostrar comas
+                    fig_pred.update_layout(
+                        margin=dict(l=20, r=20, t=60, b=20),
+                        xaxis_title_font_size=14,
+                        yaxis_title_font_size=14,
+                        title_x=0.5,
+                        yaxis=dict(
+                            tickformat=",.0f",  # Formato con comas para miles
+                            gridcolor='lightgray'
+                        ),
+                        xaxis=dict(
+                            tickformat="%Y-%m-%d",
+                            gridcolor='lightgray'
+                        ),
+                        legend=dict(
+                            orientation="h",
+                            yanchor="bottom",
+                            y=-0.3,
+                            xanchor="center",
+                            x=0.5
+                        )
+                    )
+                    st.plotly_chart(fig_pred, use_container_width=True)
+                    
+                    # Análisis de crecimiento de productos basado en ingresos (Total Final)
+                    trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total Final'].sum().unstack(fill_value=0)
+                    if trends.shape[1] >= 2:
+                        growth = ((trends.iloc[:, -1] - trends.iloc[:, -2]) / trends.iloc[:, -2].replace(0, np.nan) * 100).replace([np.inf, -np.inf], 0).dropna().sort_values(ascending=False)
+                        top5 = growth.head(5).reset_index()
+                        top5.columns = ['Producto', 'Crecimiento (%)']
+                        st.subheader(TRANSLATIONS[lang_code]['growth_subheader'])
+                        st.dataframe(top5)
+                    else:
+                        st.warning(TRANSLATIONS[lang_code]['no_monthly_data'])
         except Exception as e:
             st.error(TRANSLATIONS[lang_code]['predictive_error'].format(error=str(e)))
 
