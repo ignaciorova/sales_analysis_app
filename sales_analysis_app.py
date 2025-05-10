@@ -207,7 +207,7 @@ TRANSLATIONS = {
         'accounts_avna': 'Ctas. por Cobrar Avna',
         'top_product': 'Producto Más Vendido',
         'unique_clients': 'Clientes Únicos',
-        'daily_sales': 'Resumen de Ventas Diarias',
+        'daily_sales': 'Resumen de Ingresos Diarios',
         'duplicates_detected': '⚠️ Se detectaron almuerzos ejecutivos duplicados:',
         'no_duplicates': '✅ No se detectaron almuerzos ejecutivos duplicados en el mismo día.',
         'download_excel': 'Descargar Duplicados (Excel)',
@@ -217,14 +217,14 @@ TRANSLATIONS = {
         'download_csv': 'Descargar CSV',
         'download_excel_client': 'Descargar Excel',
         'download_pdf_client': 'Descargar PDF',
-        'predictive_subheader': 'Predicción de Ventas para los Próximos 7 Días',
-        'growth_subheader': 'Productos con Potencial de Crecimiento',
+        'predictive_subheader': 'Predicción de Ingresos Totales para los Próximos 7 Días',
+        'growth_subheader': 'Productos con Potencial de Crecimiento (Basado en Ingresos)',
         'no_predictive_data': 'No hay suficientes datos históricos para predicción (se requieren al menos 2 días).',
         'no_monthly_data': 'No hay suficientes datos mensuales para calcular el crecimiento de productos (se requieren al menos dos meses).',
         'predictive_error': 'Error en el análisis predictivo: {error}',
-        'top_products': 'Top 10 Productos por Consumo',
-        'daily_trend': 'Tendencia Diaria de Consumo',
-        'sales_by_group': 'Consumo por Grupo de Clientes',
+        'top_products': 'Top 10 Productos por Ingresos',
+        'daily_trend': 'Tendencia Diaria de Ingresos',
+        'sales_by_group': 'Ingresos por Grupo de Clientes',
         'export_summary': 'Exportar Resumen de Métricas',
         'download_summary_csv': 'Descargar Resumen (CSV)',
         'download_summary_excel': 'Descargar Resumen (Excel)',
@@ -259,7 +259,7 @@ TRANSLATIONS = {
         'accounts_avna': 'Accounts Receivable Avna',
         'top_product': 'Top Selling Product',
         'unique_clients': 'Unique Clients',
-        'daily_sales': 'Daily Sales Summary',
+        'daily_sales': 'Daily Revenue Summary',
         'duplicates_detected': '⚠️ Duplicate executive lunches detected:',
         'no_duplicates': '✅ No duplicate executive lunches detected on the same day.',
         'download_excel': 'Download Duplicates (Excel)',
@@ -269,14 +269,14 @@ TRANSLATIONS = {
         'download_csv': 'Download CSV',
         'download_excel_client': 'Download Excel',
         'download_pdf_client': 'Download PDF',
-        'predictive_subheader': 'Sales Forecast for the Next 7 Days',
-        'growth_subheader': 'Products with Growth Potential',
+        'predictive_subheader': 'Total Revenue Forecast for the Next 7 Days',
+        'growth_subheader': 'Products with Growth Potential (Based on Revenue)',
         'no_predictive_data': 'Not enough historical data for prediction (at least 2 days required).',
         'no_monthly_data': 'Not enough monthly data to calculate product growth (at least two months required).',
         'predictive_error': 'Error in predictive analysis: {error}',
-        'top_products': 'Top 10 Products by Consumption',
-        'daily_trend': 'Daily Consumption Trend',
-        'sales_by_group': 'Consumption by Client Group',
+        'top_products': 'Top 10 Products by Revenue',
+        'daily_trend': 'Daily Revenue Trend',
+        'sales_by_group': 'Revenue by Client Group',
         'export_summary': 'Export Metrics Summary',
         'download_summary_csv': 'Download Summary (CSV)',
         'download_summary_excel': 'Download Summary (Excel)',
@@ -464,7 +464,7 @@ else:
         if not daily_summary.empty:
             fig_summary = px.line(
                 daily_summary, x='Fecha', y='Total Final',
-                labels={'Total Final': 'Ventas (₡)', 'Fecha': 'Fecha'},
+                labels={'Total Final': 'Ingresos (₡)', 'Fecha': 'Fecha'},
                 title=TRANSLATIONS[lang_code]['daily_sales'],
                 template="plotly_white",
                 color_discrete_sequence=["#4CAF50"]
@@ -526,7 +526,7 @@ else:
         }).reset_index()
         client_sales.columns = [
             'Cliente',
-            'Consumo Total (₡)',
+            'Ingresos Totales (₡)',
             'Número de Órdenes',
             'Comisión Total (₡)',
             'Ctas. por Cobrar Aseavna (₡)',
@@ -534,26 +534,26 @@ else:
             'Producto Más Comprado'
         ]
         
-        if not client_sales.empty and client_sales['Consumo Total (₡)'].sum() > 0:
-            threshold = client_sales['Consumo Total (₡)'].quantile(0.95)
-            unusual = client_sales[client_sales['Consumo Total (₡)'] > threshold]
+        if not client_sales.empty and client_sales['Ingresos Totales (₡)'].sum() > 0:
+            threshold = client_sales['Ingresos Totales (₡)'].quantile(0.95)
+            unusual = client_sales[client_sales['Ingresos Totales (₡)'] > threshold]
             if not unusual.empty:
                 st.markdown(
                     f'<div class="alert-box" style="background-color: {CONFIG["colors"]["warning"]}; color: black;">'
-                    f'{TRANSLATIONS[lang_code]["unusual_sales"]} (Consumo Total > ₡{threshold:,.2f})'
+                    f'{TRANSLATIONS[lang_code]["unusual_sales"]} (Ingresos Totales > ₡{threshold:,.2f})'
                     f'</div>',
                     unsafe_allow_html=True
                 )
-                unusual_display = unusual[['Cliente', 'Consumo Total (₡)', 'Número de Órdenes']].copy()
-                unusual_display['Consumo Total (₡)'] = unusual_display['Consumo Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
+                unusual_display = unusual[['Cliente', 'Ingresos Totales (₡)', 'Número de Órdenes']].copy()
+                unusual_display['Ingresos Totales (₡)'] = unusual_display['Ingresos Totales (₡)'].apply(lambda x: f"₡{x:,.2f}")
                 st.dataframe(unusual_display)
             else:
-                st.info("No se encontraron clientes con volumen de consumo inusual.")
+                st.info("No se encontraron clientes con volumen de ingresos inusual.")
         else:
-            st.warning("No hay datos suficientes para identificar clientes con consumo inusual.")
+            st.warning("No hay datos suficientes para identificar clientes con ingresos inusuales.")
         
         client_sales_display = client_sales.copy()
-        client_sales_display['Consumo Total (₡)'] = client_sales_display['Consumo Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
+        client_sales_display['Ingresos Totales (₡)'] = client_sales_display['Ingresos Totales (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Comisión Total (₡)'] = client_sales_display['Comisión Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Ctas. por Cobrar Aseavna (₡)'] = client_sales_display['Ctas. por Cobrar Aseavna (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Ctas. por Cobrar Avna (₡)'] = client_sales_display['Ctas. por Cobrar Avna (₡)'].apply(lambda x: f"₡{x:,.2f}")
@@ -566,23 +566,23 @@ else:
             st.download_button(
                 TRANSLATIONS[lang_code]['download_csv'],
                 data=csv_bytes,
-                file_name="consumo_por_cliente.csv",
+                file_name="ingresos_por_cliente.csv",
                 mime="text/csv"
             )
         with c2:
-            buf_xl2 = generate_excel(client_sales, "Consumo por Cliente", client_sales.to_string())
+            buf_xl2 = generate_excel(client_sales, "Ingresos por Cliente", client_sales.to_string())
             st.download_button(
                 TRANSLATIONS[lang_code]['download_excel_client'],
                 data=buf_xl2,
-                file_name="consumo_por_cliente.xlsx",
+                file_name="ingresos_por_cliente.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         with c3:
-            buf_pdf2 = generate_pdf(client_sales, "Reporte de Consumo por Cliente - ASEAVNA", "consumo_por_cliente.pdf", client_sales.to_string())
+            buf_pdf2 = generate_pdf(client_sales, "Reporte de Ingresos por Cliente - ASEAVNA", "ingresos_por_cliente.pdf", client_sales.to_string())
             st.download_button(
                 TRANSLATIONS[lang_code]['download_pdf_client'],
                 data=buf_pdf2,
-                file_name="consumo_por_cliente.pdf",
+                file_name="ingresos_por_cliente.pdf",
                 mime="application/pdf"
             )
 
@@ -590,10 +590,12 @@ else:
     with tab4:
         st.header(TRANSLATIONS[lang_code]['predictive'])
         try:
+            # Agrupar por fecha para obtener los ingresos totales diarios (Total Final)
             daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total Final'].sum().reset_index(name='Total')
             daily['Days'] = (pd.to_datetime(daily['Fecha']) - pd.to_datetime(daily['Fecha'].min())).dt.days
             
             if len(daily) > 1:
+                # Modelo de regresión lineal para predecir ingresos futuros
                 X = sm.add_constant(daily['Days'])
                 model = sm.OLS(daily['Total'], X).fit()
                 future_days = np.array([daily['Days'].iloc[-1] + i for i in range(1, 8)])
@@ -615,11 +617,12 @@ else:
                 })
                 combined = pd.concat([hist_df, pred_df])
                 
+                # Gráfica de predicción de ingresos
                 st.subheader(TRANSLATIONS[lang_code]['predictive_subheader'])
                 fig_pred = px.line(
                     combined, x='Fecha', y='Total', color='Tipo',
-                    labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
-                    title="Tendencia Histórica y Predicción de Ventas con Intervalos de Confianza",
+                    labels={'Total': 'Ingresos Totales (₡)', 'Fecha': 'Fecha'},
+                    title="Tendencia Histórica y Predicción de Ingresos Totales con Intervalos de Confianza",
                     template="plotly_white",
                     color_discrete_sequence=["#4CAF50", "#FF5733"]
                 )
@@ -637,6 +640,7 @@ else:
                 )
                 st.plotly_chart(fig_pred, use_container_width=True)
                 
+                # Análisis de crecimiento de productos basado en ingresos (Total Final)
                 trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total Final'].sum().unstack(fill_value=0)
                 if trends.shape[1] >= 2:
                     growth = ((trends.iloc[:, -1] - trends.iloc[:, -2]) / trends.iloc[:, -2].replace(0, np.nan) * 100).replace([np.inf, -np.inf], 0).dropna().sort_values(ascending=False)
@@ -666,7 +670,7 @@ else:
                 x='Líneas de la orden', 
                 y='Total Final',
                 title=TRANSLATIONS[lang_code]['top_products'],
-                labels={'Total Final': 'Consumo (₡)', 'Líneas de la orden': 'Producto'},
+                labels={'Total Final': 'Ingresos (₡)', 'Líneas de la orden': 'Producto'},
                 template="plotly_white",
                 color_discrete_sequence=["#4CAF50"],
                 hover_data={'Total Final': ':,.2f'}
@@ -683,7 +687,7 @@ else:
             )
             st.plotly_chart(fig1, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar los top 10 productos por consumo.")
+            st.warning("No hay datos suficientes o válidos para mostrar los top 10 productos por ingresos.")
 
         daily_summary = viz_df.groupby(viz_df['Fecha'].dt.date)['Total Final'].sum().reset_index()
         if not daily_summary.empty and daily_summary['Total Final'].sum() > 0:
@@ -691,7 +695,7 @@ else:
                 daily_summary, 
                 x='Fecha', 
                 y='Total Final',
-                labels={'Total Final': 'Consumo (₡)', 'Fecha': 'Fecha'},
+                labels={'Total Final': 'Ingresos (₡)', 'Fecha': 'Fecha'},
                 title=TRANSLATIONS[lang_code]['daily_trend'],
                 template="plotly_white",
                 color_discrete_sequence=["#4CAF50"],
@@ -707,7 +711,7 @@ else:
             )
             st.plotly_chart(fig2, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar la tendencia diaria de consumo.")
+            st.warning("No hay datos suficientes o válidos para mostrar la tendencia diaria de ingresos.")
 
         grp = viz_df.groupby('Cliente/Nombre principal')['Total Final'].sum().reset_index()
         if not grp.empty and grp['Total Final'].sum() > 0:
@@ -728,7 +732,7 @@ else:
             )
             st.plotly_chart(fig3, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar el consumo por grupo de clientes.")
+            st.warning("No hay datos suficientes o válidos para mostrar los ingresos por grupo de clientes.")
 
     # Tab 6: Resumen de Métricas para Exportar
     with tab6:
