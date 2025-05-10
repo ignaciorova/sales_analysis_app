@@ -12,21 +12,150 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 import statsmodels.api as sm
 
+# Funciones auxiliares
+def generate_pdf(data: pd.DataFrame, title: str, filename: str, _data_hash: str) -> io.BytesIO:
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    try:
+        logo = Image("app/data/logo.png", width=100, height=50)
+        elements.append(logo)
+    except Exception as e:
+        elements.append(Paragraph("Logo no disponible", styles['Normal']))
+
+    elements.append(Paragraph(title, styles['Title']))
+    elements.append(Paragraph(" ", styles['Normal']))
+
+    data_list = [data.columns.tolist()] + data.values.tolist()
+    table = Table(data_list)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    elements.append(table)
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+def generate_excel(data: pd.DataFrame, sheet_name: str, _data_hash: str) -> io.BytesIO:
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        data.to_excel(writer, sheet_name=sheet_name, index=False)
+        workbook = writer.book
+        worksheet = writer.sheets[sheet_name]
+        header_fmt = workbook.add_format({'bold': True, 'bg_color': '#D3D3D3'})
+        for col_num, value in enumerate(data.columns.values):
+            worksheet.write(0, col_num, value, header_fmt)
+        worksheet.autofit()
+    buffer.seek(0)
+    return buffer
+
+def load_data():
+    def load_excel():
+        try:
+            df = pd.read_excel("app/data/Órdenes del punto de venta (pos.order).xlsx", engine='openpyxl')
+            return df
+        except Exception as e:
+            st.error(f"Error al cargar los datos: {str(e)}")
+            return pd.DataFrame()
+
+    def validate_data(df):
+        required_cols = ['Fecha', 'Cliente/Nombre', 'Líneas de la orden']
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            st.error(f"Faltan las columnas: {', '.join(missing_cols)}")
+            return False
+        return True
+
+    def map_columns(df):
+        df_columns = {col.strip().lower(): col for col in df.columns}
+        CONFIG['columns'] = {
+            'Cliente/Código de barras': 'Cliente/Código de barras',
+            'Cliente/Nombre': 'Cliente/Nombre',
+            'Centro de Costos Aseavna': 'Centro de Costos Aseavna',
+            'Fecha': 'Fecha',
+            'Número de recibo': 'Número de recibo',
+            'Cliente/Nombre principal': 'Cliente/Nombre principal',
+            'Precio total colaborador': 'Precio total colaborador',
+            'Comision': 'Comision Aseavna',
+            'Cuentas por a cobrar aseavna': 'Cuentas por a cobrar aseavna',
+            'Cuentas por a Cobrar Avna': 'Cuentas por a Cobrar Avna',
+            'Líneas de la orden': 'Líneas de la orden',
+            'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
+        }
+        for expected_col, search_col in CONFIG['columns'].items():
+            found_col = next((col for col_name, col in df_columns.items() if col_name == search_col.strip().lower()), None)
+            df[expected_col] = df[found_col] if found_col else ('Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0)
+        return df
+
+    def calculate_total(df):
+        total_cols = ['Precio total colaborador', 'Comision Aseavna', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
+        df['Total'] = 0
+        for col in total_cols:
+            if col in df.columns:
+                df['Total'] += pd.to_numeric(df[col], errors='coerce').fillna(0)
+        return df
+
+    def clean_data(df):
+        defaults = {
+            'Cliente/Código de barras': 'Desconocido',
+            'Cliente/Nombre': 'Desconocido',
+            'Centro de Costos Aseavna': 'Desconocido',
+            'Cliente/Nombre principal': 'Desconocido',
+            'Líneas de la orden': 'Desconocido'
+        }
+        for col, default in defaults.items():
+            df[col] = df[col].fillna(default)
+        numeric_cols = ['Líneas de la orden/Cantidad', 'Total', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna', 'Precio total colaborador']
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+        return df
+
+    def add_day_of_week(df):
+        if pd.api.types.is_numeric_dtype(df['Fecha']):
+            df['Fecha'] = pd.to_datetime(df['Fecha'], unit='D', origin='1899-12-30') - timedelta(days=2)
+        else:
+            df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+        df['Día de la Semana'] = df['Fecha'].dt.day_name()
+        day_translation = {
+            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
+        }
+        df['Día de la Semana'] = df['Día de la Semana'].map(day_translation).fillna(df['Día de la Semana'])
+        return df
+
+    df = load_excel()
+    if df.empty or not validate_data(df):
+        return pd.DataFrame()
+    df = map_columns(df)
+    df = calculate_total(df)
+    df = clean_data(df)
+    df = add_day_of_week(df)
+    return df
+
 # Configuración centralizada
 CONFIG = {
     'columns': {
-        'Cliente/Código de barras': 'cliente/código de barras',
-        'Cliente/Nombre': 'cliente/nombre',
-        'Centro de Costos Aseavna': 'centro de costos aseavna',
-        'Fecha': 'fecha',
-        'Número de recibo': 'número de recibo',
-        'Cliente/Nombre principal': 'cliente/nombre principal',
-        'Total': 'total',  # Ahora se calculará
-        'Comision': 'comision aseavna',
-        'Cuentas por a cobrar aseavna': 'cuentas por a cobrar aseavna',
-        'Cuentas por a Cobrar Avna': 'cuentas por a cobrar avna',
-        'Líneas de la orden': 'líneas de la orden',
-        'Líneas de la orden/Cantidad': 'líneas de la orden/cantidad'
+        'Cliente/Código de barras': 'Cliente/Código de barras',
+        'Cliente/Nombre': 'Cliente/Nombre',
+        'Centro de Costos Aseavna': 'Centro de Costos Aseavna',
+        'Fecha': 'Fecha',
+        'Número de recibo': 'Número de recibo',
+        'Cliente/Nombre principal': 'Cliente/Nombre principal',
+        'Precio total colaborador': 'Precio total colaborador',
+        'Comision': 'Comision Aseavna',
+        'Cuentas por a cobrar aseavna': 'Cuentas por a cobrar aseavna',
+        'Cuentas por a Cobrar Avna': 'Cuentas por a Cobrar Avna',
+        'Líneas de la orden': 'Líneas de la orden',
+        'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
     },
     'styles': {
         'metric_box': 'border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center;',
@@ -183,75 +312,6 @@ st.title(TRANSLATIONS[lang_code]['title'])
 st.markdown(TRANSLATIONS[lang_code]['description'])
 
 # Carga de datos
-def load_data():
-    def load_excel():
-        try:
-            df = pd.read_excel("app/data/Órdenes del punto de venta (pos.order).xlsx", engine='openpyxl')
-            return df
-        except Exception as e:
-            st.error(f"Error al cargar los datos: {str(e)}")
-            return pd.DataFrame()
-
-    def validate_data(df):
-        required_cols = ['Fecha', 'Cliente/Nombre', 'Líneas de la orden']
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        if missing_cols:
-            st.error(f"Faltan las columnas: {', '.join(missing_cols)}")
-            return False
-        return True
-
-    def map_columns(df):
-        df_columns = {col.strip().lower(): col for col in df.columns}
-        for expected_col, search_col in CONFIG['columns'].items():
-            found_col = next((col for col_name, col in df_columns.items() if col_name == search_col.strip().lower()), None)
-            df[expected_col] = df[found_col] if found_col else ('Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0)
-        return df
-
-    def calculate_total(df):
-        total_cols = ['precio total colaborador', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
-        df['Total'] = 0
-        for col in total_cols:
-            if col in df.columns:
-                df['Total'] += df[col].fillna(0)
-        return df
-
-    def clean_data(df):
-        defaults = {
-            'Cliente/Código de barras': 'Desconocido',
-            'Cliente/Nombre': 'Desconocido',
-            'Centro de Costos Aseavna': 'Desconocido',
-            'Cliente/Nombre principal': 'Desconocido',
-            'Líneas de la orden': 'Desconocido'
-        }
-        for col, default in defaults.items():
-            df[col] = df[col].fillna(default)
-        numeric_cols = ['Líneas de la orden/Cantidad', 'Total', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
-        for col in numeric_cols:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        return df
-
-    def add_day_of_week(df):
-        if pd.api.types.is_numeric_dtype(df['Fecha']):
-            df['Fecha'] = pd.to_datetime(df['Fecha'], unit='D', origin='1899-12-30') - timedelta(days=2)
-        else:
-            df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
-        df['Día de la Semana'] = df['Fecha'].dt.day_name()
-        day_translation = {
-            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
-            'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
-        }
-        df['Día de la Semana'] = df['Día de la Semana'].map(day_translation).fillna(df['Día de la Semana'])
-        return df
-
-    df = load_excel()
-    if df.empty or not validate_data(df):
-        return pd.DataFrame()
-    df = map_columns(df)
-    df = calculate_total(df)
-    df = clean_data(df)
-    df = add_day_of_week(df)
-    return df
-
 df = load_data()
 
 if df.empty:
