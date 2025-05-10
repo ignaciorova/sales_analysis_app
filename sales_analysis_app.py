@@ -103,6 +103,11 @@ def load_data():
         numeric_cols = ['Líneas de la orden/Cantidad', 'Total', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna', 'Precio total colaborador']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+        # Normalizar columnas de texto para los filtros
+        if 'Cliente/Nombre' in df.columns:
+            df['Cliente/Nombre'] = df['Cliente/Nombre'].astype(str).str.strip().str.lower()
+        if 'Centro de Costos Aseavna' in df.columns:
+            df['Centro de Costos Aseavna'] = df['Centro de Costos Aseavna'].astype(str).str.strip().str.lower()
         return df
 
     def add_day_of_week(df):
@@ -121,7 +126,9 @@ def load_data():
         
         duplicates = df.duplicated().sum()
         if duplicates > 0:
-            st.warning(f"Se encontraron {duplicates} filas duplicadas en el archivo Excel.")
+            st.warning(f"Se encontraron {duplicates} filas duplicadas en el archivo Excel. Se eliminarán.")
+            df = df.drop_duplicates()
+            st.sidebar.write(f"Filas después de eliminar duplicados: {len(df)}")
         
         df = df.dropna(subset=['Fecha'])
         st.sidebar.write(f"Filas después de eliminar fechas no válidas: {len(df)}")
@@ -164,7 +171,7 @@ CONFIG = {
         'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; text-align: center; width: 90%;'
     },
     'colors': {
-        'primary': '#4CAF10',
+        'primary': '#4CAF50',
         'secondary': '#2c3e50',
         'warning': '#ffeb3b'
     }
@@ -293,7 +300,7 @@ st.markdown(f"""
 .stSidebar {{background-color: #e8ecef; padding: 5px;}}
 h1, h2, h3 {{color: {CONFIG['colors']['secondary']}; text-align: center;}}
 .metric-box {{border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%; display: flex; flex-direction: column; justify-content: center; align-items: center;}}
-.metric-box .title {{font-size: 10px; color: {CONFIG['colors']['secondary']}; margin-bottom: 2px;}}
+.metric-box .title {{font-size: 10px; color: {CONFIG['colors']['primary']}; margin-bottom: 2px;}}
 .metric-box .value {{font-size: 12px;}}
 .alert-box {{background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; text-align: center; width: 90%;}}
 .logo-container {{text-align: center; margin: 10px 0;}}
@@ -365,9 +372,11 @@ else:
         days_of_week = ['Todos'] + sorted(df['Día de la Semana'].dropna().astype(str).unique().tolist())
         selected_day = st.selectbox(TRANSLATIONS[lang_code]['day_of_week'], days_of_week, key="day")
         
+        # Normalizar opciones de clientes para el filtro
         clients = ['Todos'] + sorted(df['Cliente/Nombre'].dropna().astype(str).unique().tolist())
         selected_client = st.selectbox(TRANSLATIONS[lang_code]['specific_client'], clients, key="client")
         
+        # Normalizar opciones de centros de costos
         centros_costos = ['Todos'] + sorted(df['Centro de Costos Aseavna'].dropna().astype(str).unique().tolist())
         selected_centro = st.selectbox("Centro de Costos", centros_costos, key="centro_costos")
 
@@ -398,9 +407,15 @@ else:
     if selected_day != 'Todos':
         filtered_df = filtered_df[filtered_df['Día de la Semana'] == selected_day]
     if selected_client != 'Todos':
-        filtered_df = filtered_df[filtered_df['Cliente/Nombre'] == selected_client]
+        # Normalizar el valor seleccionado para el filtro
+        selected_client_normalized = selected_client.strip().lower()
+        filtered_df = filtered_df[filtered_df['Cliente/Nombre'] == selected_client_normalized]
+        st.sidebar.write(f"Filas después de filtrar por cliente '{selected_client}': {len(filtered_df)}")
     if selected_centro != 'Todos':
-        filtered_df = filtered_df[filtered_df['Centro de Costos Aseavna'] == selected_centro]
+        # Normalizar el valor seleccionado para el filtro
+        selected_centro_normalized = selected_centro.strip().lower()
+        filtered_df = filtered_df[filtered_df['Centro de Costos Aseavna'] == selected_centro_normalized]
+        st.sidebar.write(f"Filas después de filtrar por centro de costos '{selected_centro}': {len(filtered_df)}")
 
     product_types = ['Todos'] + sorted(filtered_df['Líneas de la orden'].dropna().astype(str).unique().tolist())
     client_groups = ['Todos'] + sorted(filtered_df['Cliente/Nombre principal'].dropna().astype(str).unique().tolist())
