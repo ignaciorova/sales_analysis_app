@@ -69,7 +69,7 @@ def load_data():
             return pd.DataFrame()
 
     def validate_data(df):
-        required_cols = ['Fecha', 'Cliente/Nombre', 'Líneas de la orden']
+        required_cols = ['Fecha', 'Cliente/Nombre', 'Líneas de la orden', 'Ventas Totales']
         missing_cols = [col for col in required_cols if col not in df.columns]
         if missing_cols:
             st.error(f"Faltan las columnas: {', '.join(missing_cols)}")
@@ -83,15 +83,6 @@ def load_data():
             df[expected_col] = df[found_col] if found_col else ('Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0)
         return df
 
-    def calculate_total(df):
-        # No calculamos Total_Cuentas_Cobrar, solo mantenemos Total como la suma de columnas relevantes (excluyendo cuentas por cobrar)
-        total_cols = ['Precio total colaborador', 'Comision Aseavna']
-        df['Total'] = 0
-        for col in total_cols:
-            if col in df.columns:
-                df['Total'] += pd.to_numeric(df[col], errors='coerce').fillna(0)
-        return df
-
     def clean_data(df):
         defaults = {
             'Cliente/Código de barras': 'Desconocido',
@@ -102,7 +93,7 @@ def load_data():
         }
         for col, default in defaults.items():
             df[col] = df[col].fillna(default)
-        numeric_cols = ['Líneas de la orden/Cantidad', 'Total', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna', 'Precio total colaborador']
+        numeric_cols = ['Líneas de la orden/Cantidad', 'Precio total colaborador', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         # Normalizar columnas de texto para los filtros
@@ -147,7 +138,6 @@ def load_data():
     if df.empty or not validate_data(df):
         return pd.DataFrame()
     df = map_columns(df)
-    df = calculate_total(df)
     df = clean_data(df)
     df = add_day_of_week(df)
     return df
@@ -161,7 +151,7 @@ CONFIG = {
         'Fecha': 'Fecha',
         'Número de recibo': 'Número de recibo',
         'Cliente/Nombre principal': 'Cliente/Nombre principal',
-        'Precio total colaborador': 'Ventas Totales',  # Mapeo ajustado para reflejar la columna del Excel
+        'Precio total colaborador': 'Ventas Totales',  # Mapeo de la columna del Excel
         'Comision': 'Comision Aseavna',
         'Cuentas por a cobrar aseavna': 'Cuentas por a cobrar aseavna',
         'Cuentas por a Cobrar Avna': 'Cuentas por a Cobrar Avna',
@@ -182,7 +172,7 @@ CONFIG = {
 # Soporte multi-idioma
 TRANSLATIONS = {
     'es': {
-        'title': '📊 Dashboard de Análisis de Ventas - ASEAVNA',
+        'title': '📊 Dashboard de Análisis de Consumo - ASEAVNA',
         'description': 'Análisis avanzado de órdenes de venta del sistema POS, con métricas, predicciones y reportes descargables por cliente.',
         'filters_header': 'Filtros de Análisis',
         'date_range': 'Rango de Fechas',
@@ -194,7 +184,7 @@ TRANSLATIONS = {
         'reset_filters': 'Restablecer Filtros',
         'metrics': 'Métricas Generales',
         'duplicates': 'Almuerzos Duplicados',
-        'client_sales': 'Ventas por Cliente',
+        'client_sales': 'Consumo por Cliente',
         'predictive': 'Análisis Predictivo',
         'visualizations': 'Visualizaciones',
         'export': 'Exportar Resumen',
@@ -206,9 +196,9 @@ TRANSLATIONS = {
         'commission': 'Comisión Total',
         'accounts_aseavna': 'Ctas. por Cobrar Aseavna',
         'accounts_avna': 'Ctas. por Cobrar Avna',
-        'top_product': 'Producto Más Vendido',
+        'top_product': 'Producto Más Consumido',
         'unique_clients': 'Clientes Únicos',
-        'daily_sales': 'Resumen de Ventas Diarias',
+        'daily_sales': 'Resumen de Consumo Diario',
         'duplicates_detected': '⚠️ Se detectaron almuerzos ejecutivos duplicados:',
         'no_duplicates': '✅ No se detectaron almuerzos ejecutivos duplicados en el mismo día.',
         'download_excel': 'Descargar Duplicados (Excel)',
@@ -218,7 +208,7 @@ TRANSLATIONS = {
         'download_csv': 'Descargar CSV',
         'download_excel_client': 'Descargar Excel',
         'download_pdf_client': 'Descargar PDF',
-        'predictive_subheader': 'Predicción de Ventas para los Próximos 7 Días',
+        'predictive_subheader': 'Predicción de Consumo para los Próximos 7 Días',
         'growth_subheader': 'Productos con Potencial de Crecimiento',
         'no_predictive_data': 'No hay suficientes datos históricos para predicción (se requieren al menos 2 días).',
         'no_monthly_data': 'No hay suficientes datos mensuales para calcular el crecimiento de productos (se requieren al menos dos meses).',
@@ -234,7 +224,7 @@ TRANSLATIONS = {
         'footer': 'Desarrollado por Wilfredos para ASEAVNA | Fuente de Datos: Órdenes del Punto de Venta (POS) | 2025'
     },
     'en': {
-        'title': '📊 Sales Analysis Dashboard - ASEAVNA',
+        'title': '📊 Consumption Analysis Dashboard - ASEAVNA',
         'description': 'Advanced analysis of POS sales orders, with metrics, predictions, and downloadable client reports.',
         'filters_header': 'Analysis Filters',
         'date_range': 'Date Range',
@@ -246,7 +236,7 @@ TRANSLATIONS = {
         'reset_filters': 'Reset Filters',
         'metrics': 'General Metrics',
         'duplicates': 'Duplicate Lunches',
-        'client_sales': 'Sales by Client',
+        'client_sales': 'Consumption by Client',
         'predictive': 'Predictive Analysis',
         'visualizations': 'Visualizations',
         'export': 'Export Summary',
@@ -258,9 +248,9 @@ TRANSLATIONS = {
         'commission': 'Total Commission',
         'accounts_aseavna': 'Accounts Receivable Aseavna',
         'accounts_avna': 'Accounts Receivable Avna',
-        'top_product': 'Top Selling Product',
+        'top_product': 'Top Consumed Product',
         'unique_clients': 'Unique Clients',
-        'daily_sales': 'Daily Sales Summary',
+        'daily_sales': 'Daily Consumption Summary',
         'duplicates_detected': '⚠️ Duplicate executive lunches detected:',
         'no_duplicates': '✅ No duplicate executive lunches detected on the same day.',
         'download_excel': 'Download Duplicates (Excel)',
@@ -270,7 +260,7 @@ TRANSLATIONS = {
         'download_csv': 'Download CSV',
         'download_excel_client': 'Download Excel',
         'download_pdf_client': 'Download PDF',
-        'predictive_subheader': 'Sales Forecast for the Next 7 Days',
+        'predictive_subheader': 'Consumption Forecast for the Next 7 Days',
         'growth_subheader': 'Products with Growth Potential',
         'no_predictive_data': 'Not enough historical data for prediction (at least 2 days required).',
         'no_monthly_data': 'Not enough monthly data to calculate product growth (at least two months required).',
@@ -289,7 +279,7 @@ TRANSLATIONS = {
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Análisis de Ventas - ASEAVNA",
+    page_title="Análisis de Consumo - ASEAVNA",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -458,18 +448,18 @@ else:
     # Tab 1: Métricas Generales
     with tab1:
         st.header(TRANSLATIONS[lang_code]['metrics'])
-        most_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmax() if not filtered_df.empty else "N/A"
+        most_sold = filtered_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().idxmax() if not filtered_df.empty else "N/A"
         col1, col2 = st.columns(2)
         with col1:
             st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["top_product"]}</span><span class="value">{most_sold}</span></div>', unsafe_allow_html=True)
         with col2:
             st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["unique_clients"]}</span><span class="value">{len(filtered_df["Cliente/Nombre"].unique())}</span></div>', unsafe_allow_html=True)
         
-        daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index()
+        daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Precio total colaborador'].sum().reset_index()
         if not daily_summary.empty:
             fig_summary = px.line(
-                daily_summary, x='Fecha', y='Total',
-                labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
+                daily_summary, x='Fecha', y='Precio total colaborador',
+                labels={'Precio total colaborador': 'Consumo (₡)', 'Fecha': 'Fecha'},
                 title=TRANSLATIONS[lang_code]['daily_sales'],
                 template="plotly_white",
                 color_discrete_sequence=["#4CAF50"]
@@ -520,9 +510,9 @@ else:
 
     # Tab 3: Análisis de Consumo por Cliente
     with tab3:
-        st.header(TRANSLATIONS[lang_code]['client_sales'])
+        st  st.header(TRANSLATIONS[lang_code]['client_sales'])
         client_sales = filtered_df.groupby('Cliente/Nombre').agg({
-            'Precio total colaborador': 'sum',  # Usamos la columna mapeada como Ventas Totales del Excel
+            'Precio total colaborador': 'sum',
             'Número de recibo': 'nunique',
             'Comision': 'sum',
             'Cuentas por a cobrar aseavna': 'sum',
@@ -539,9 +529,9 @@ else:
             'Producto Más Comprado'
         ]
         
-        # Identificar clientes con volumen de consumo inusual usando percentil 95 basado en Consumo Total
+        # Identificar clientes con volumen de consumo inusual usando percentil 95
         if not client_sales.empty and client_sales['Consumo Total (₡)'].sum() > 0:
-            threshold = client_sales['Consumo Total (₡)'].quantile(0.95)  # Percentil 95
+            threshold = client_sales['Consumo Total (₡)'].quantile(0.95)
             unusual = client_sales[client_sales['Consumo Total (₡)'] > threshold]
             if not unusual.empty:
                 st.markdown(
@@ -597,12 +587,12 @@ else:
     with tab4:
         st.header(TRANSLATIONS[lang_code]['predictive'])
         try:
-            daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index(name='Total')
+            daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Precio total colaborador'].sum().reset_index(name='Consumo')
             daily['Days'] = (pd.to_datetime(daily['Fecha']) - pd.to_datetime(daily['Fecha'].min())).dt.days
             
             if len(daily) > 1:
                 X = sm.add_constant(daily['Days'])
-                model = sm.OLS(daily['Total'], X).fit()
+                model = sm.OLS(daily['Consumo'], X).fit()
                 future_days = np.array([daily['Days'].iloc[-1] + i for i in range(1, 8)])
                 future_X = sm.add_constant(future_days)
                 preds = model.predict(future_X)
@@ -610,23 +600,23 @@ else:
                 
                 pred_df = pd.DataFrame({
                     'Fecha': [pd.to_datetime(daily['Fecha']).max() + timedelta(days=i) for i in range(1, 8)],
-                    'Total': preds,
+                    'Consumo': preds,
                     'Lower': conf_int[:, 0],
                     'Upper': conf_int[:, 1],
                     'Tipo': 'Predicción'
                 })
                 hist_df = pd.DataFrame({
                     'Fecha': pd.to_datetime(daily['Fecha']),
-                    'Total': daily['Total'],
+                    'Consumo': daily['Consumo'],
                     'Tipo': 'Histórico'
                 })
                 combined = pd.concat([hist_df, pred_df])
                 
                 st.subheader(TRANSLATIONS[lang_code]['predictive_subheader'])
                 fig_pred = px.line(
-                    combined, x='Fecha', y='Total', color='Tipo',
-                    labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
-                    title="Tendencia Histórica y Predicción de Ventas con Intervalos de Confianza",
+                    combined, x='Fecha', y='Consumo', color='Tipo',
+                    labels={'Consumo': 'Consumo (₡)', 'Fecha': 'Fecha'},
+                    title="Tendencia Histórica y Predicción de Consumo con Intervalos de Confianza",
                     template="plotly_white",
                     color_discrete_sequence=["#4CAF50", "#FF5733"]
                 )
@@ -644,7 +634,7 @@ else:
                 )
                 st.plotly_chart(fig_pred, use_container_width=True)
                 
-                trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total'].sum().unstack(fill_value=0)
+                trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Precio total colaborador'].sum().unstack(fill_value=0)
                 if trends.shape[1] >= 2:
                     growth = ((trends.iloc[:, -1] - trends.iloc[:, -2]) / trends.iloc[:, -2].replace(0, np.nan) * 100).replace([np.inf, -np.inf], 0).dropna().sort_values(ascending=False)
                     top5 = growth.head(5).reset_index()
@@ -666,10 +656,10 @@ else:
         if selected_centro != 'Todos':
             viz_df = viz_df[viz_df['Centro de Costos Aseavna'] == selected_centro_normalized]
 
-        # Top 10 Productos por Consumo (usando Precio total colaborador)
+        # Top 10 Productos por Consumo
         top10 = viz_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().nlargest(10).reset_index()
         if not top10.empty and top10['Precio total colaborador'].sum() > 0:
-            top10['Precio total colaborador'] = top10['Precio total colaborador'].clip(upper=1e7)  # Limitar valores extremos
+            top10['Precio total colaborador'] = top10['Precio total colaborador'].clip(upper=1e7)
             fig1 = px.bar(
                 top10, 
                 x='Líneas de la orden', 
@@ -722,7 +712,6 @@ else:
         # Consumo por Grupo de Clientes
         grp = viz_df.groupby('Cliente/Nombre principal')['Precio total colaborador'].sum().reset_index()
         if not grp.empty and grp['Precio total colaborador'].sum() > 0:
-            # Limitar a los top 10 grupos para evitar gráficas abarrotadas
             grp = grp.nlargest(10, 'Precio total colaborador')
             fig3 = px.pie(
                 grp, 
@@ -745,18 +734,20 @@ else:
     # Tab 6: Resumen de Métricas para Exportar
     with tab6:
         st.header(TRANSLATIONS[lang_code]['export'])
-        most_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmax() if not filtered_df.empty else "N/A"
-        least_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmin() if not filtered_df.empty else "N/A"
+        most_sold = filtered_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().idxmax() if not filtered_df.empty else "N/A"
+        least_sold = filtered_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().idxmin() if not filtered_df.empty else "N/A"
+        total_consumo = filtered_df['Precio total colaborador'].sum()
         
         report = {
             "Número de Órdenes": total_orders,
             "Líneas Totales": total_lines_filtered,
+            "Consumo Total (₡)": total_consumo,
             "Comisión Total (₡)": total_commission,
             "Ctas. por Cobrar Aseavna (₡)": total_cuentas_cobrar_aseavna,
             "Ctas. por Cobrar Avna (₡)": total_cuentas_cobrar_avna,
             "Clientes Únicos": len(clients) - 1,
-            "Producto Más Vendido": most_sold,
-            "Producto Menos Vendido": least_sold
+            "Producto Más Consumido": most_sold,
+            "Producto Menos Consumido": least_sold
         }
         report_df = pd.DataFrame([report])
         c1, c2, c3 = st.columns(3)
@@ -764,7 +755,7 @@ else:
             st.download_button(
                 TRANSLATIONS[lang_code]['download_summary_csv'],
                 data=report_df.to_csv(index=False).encode('utf-8'),
-                file_name="resumen_ventas_aseavna.csv",
+                file_name="resumen_consumo_aseavna.csv",
                 mime="text/csv"
             )
         with c2:
@@ -772,15 +763,15 @@ else:
             st.download_button(
                 TRANSLATIONS[lang_code]['download_summary_excel'],
                 data=buf_xl3,
-                file_name="resumen_ventas_aseavna.xlsx",
+                file_name="resumen_consumo_aseavna.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         with c3:
-            buf_pdf3 = generate_pdf(report_df, "Resumen de Ventas - ASEAVNA", "resumen_ventas_aseavna.pdf", report_df.to_string())
+            buf_pdf3 = generate_pdf(report_df, "Resumen de Consumo - ASEAVNA", "resumen_consumo_aseavna.pdf", report_df.to_string())
             st.download_button(
                 TRANSLATIONS[lang_code]['download_summary_pdf'],
                 data=buf_pdf3,
-                file_name="resumen_ventas_aseavna.pdf",
+                file_name="resumen_consumo_aseavna.pdf",
                 mime="application/pdf"
             )
 
