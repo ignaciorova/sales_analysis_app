@@ -160,11 +160,11 @@ CONFIG = {
         'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
     },
     'styles': {
-        'metric_box': 'border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%;',
+        'metric_box': 'border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%; display: flex; flex-direction: column; justify-content: center; align-items: center;',
         'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; text-align: center; width: 90%;'
     },
     'colors': {
-        'primary': '#4CAF50',
+        'primary': '#4CAF10',
         'secondary': '#2c3e50',
         'warning': '#ffeb3b'
     }
@@ -292,7 +292,9 @@ st.markdown(f"""
 .stButton>button {{background-color: {CONFIG['colors']['primary']}; color: white; border-radius: 5px;}}
 .stSidebar {{background-color: #e8ecef; padding: 5px;}}
 h1, h2, h3 {{color: {CONFIG['colors']['secondary']}; text-align: center;}}
-.metric-box {{border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%; font-size: 12px;}}
+.metric-box {{border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%; display: flex; flex-direction: column; justify-content: center; align-items: center;}}
+.metric-box .title {{font-size: 10px; color: {CONFIG['colors']['secondary']}; margin-bottom: 2px;}}
+.metric-box .value {{font-size: 12px;}}
 .alert-box {{background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; text-align: center; width: 90%;}}
 .logo-container {{text-align: center; margin: 10px 0;}}
 </style>
@@ -416,15 +418,15 @@ else:
     total_cuentas_cobrar_avna = filtered_df['Cuentas por a Cobrar Avna'].sum()
 
     with col1:
-        st.markdown(f'<div class="metric-box">{total_orders:,}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["orders"]}</span><span class="value">{total_orders:,}</span></div>', unsafe_allow_html=True)
     with col2:
-        st.markdown(f'<div class="metric-box">{total_lines_filtered:,}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["lines"]}</span><span class="value">{total_lines_filtered:,}</span></div>', unsafe_allow_html=True)
     with col3:
-        st.markdown(f'<div class="metric-box">₡{total_commission:,.2f}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["commission"]}</span><span class="value">₡{total_commission:,.2f}</span></div>', unsafe_allow_html=True)
     with col4:
-        st.markdown(f'<div class="metric-box">₡{total_cuentas_cobrar_aseavna:,.2f}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["accounts_aseavna"]}</span><span class="value">₡{total_cuentas_cobrar_aseavna:,.2f}</span></div>', unsafe_allow_html=True)
     with col5:
-        st.markdown(f'<div class="metric-box">₡{total_cuentas_cobrar_avna:,.2f}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["accounts_avna"]}</span><span class="value">₡{total_cuentas_cobrar_avna:,.2f}</span></div>', unsafe_allow_html=True)
 
     # Crear pestañas
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
@@ -443,9 +445,9 @@ else:
         most_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmax() if not filtered_df.empty else "N/A"
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown(f'<div class="metric-box">{most_sold}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["top_product"]}</span><span class="value">{most_sold}</span></div>', unsafe_allow_html=True)
         with col2:
-            st.markdown(f'<div class="metric-box">{len(filtered_df["Cliente/Nombre"].unique())}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["unique_clients"]}</span><span class="value">{len(filtered_df["Cliente/Nombre"].unique())}</span></div>', unsafe_allow_html=True)
         
         daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index()
         if not daily_summary.empty:
