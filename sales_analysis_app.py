@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import io
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image
 from reportlab.lib.styles import getSampleStyleSheet
 import xlsxwriter
 from sklearn.linear_model import LinearRegression
@@ -21,7 +21,7 @@ CONFIG = {
         'Fecha': 'fecha',
         'Número de recibo': 'número de recibo',
         'Cliente/Nombre principal': 'cliente/nombre principal',
-        'Total': 'precio total colaborador',
+        'Total': 'total',  # Ahora se calculará
         'Comision': 'comision aseavna',
         'Cuentas por a cobrar aseavna': 'cuentas por a cobrar aseavna',
         'Cuentas por a Cobrar Avna': 'cuentas por a cobrar avna',
@@ -162,12 +162,21 @@ h1, h2, h3 {{color: {CONFIG['colors']['secondary']};}}
 .metric-box {{{CONFIG['styles']['metric_box']}}}
 .alert-box {{{CONFIG['styles']['alert_box']}}}
 .stMetric {{font-size: 18px;}}
+.logo-container {{text-align: center; margin-bottom: 20px;}}
 </style>
 """, unsafe_allow_html=True)
 
 # Selección de idioma
 language = st.sidebar.selectbox("Idioma / Language", ["Español", "English"])
 lang_code = 'es' if language == "Español" else 'en'
+
+# Mostrar el logo
+st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+try:
+    st.image("app/data/logo.png", use_column_width=False, width=200)
+except Exception as e:
+    st.warning("No se pudo cargar el logo. Asegúrese de que 'logo.png' esté en app/data/.")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # Título y descripción
 st.title(TRANSLATIONS[lang_code]['title'])
@@ -185,7 +194,7 @@ def load_data():
             return pd.DataFrame()
 
     def validate_data(df):
-        required_cols = ['Fecha', 'Total', 'Cliente/Nombre', 'Líneas de la orden']
+        required_cols = ['Fecha', 'Cliente/Nombre', 'Líneas de la orden']
         missing_cols = [col for col in required_cols if col not in df.columns]
         if missing_cols:
             st.error(f"Faltan las columnas: {', '.join(missing_cols)}")
@@ -197,6 +206,11 @@ def load_data():
         for expected_col, search_col in CONFIG['columns'].items():
             found_col = next((col for col_name, col in df_columns.items() if col_name == search_col.strip().lower()), None)
             df[expected_col] = df[found_col] if found_col else ('Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0)
+        return df
+
+    def calculate_total(df):
+        # Calcular la columna Total sumando las columnas relevantes
+        df['Total'] = df['precio total colaborador'].fillna(0) + df['Cuentas por a cobrar aseavna'].fillna(0) + df['Cuentas por a Cobrar Avna'].fillna(0)
         return df
 
     def clean_data(df):
@@ -231,6 +245,7 @@ def load_data():
     if df.empty or not validate_data(df):
         return pd.DataFrame()
     df = map_columns(df)
+    df = calculate_total(df)  # Calcular Total
     df = clean_data(df)
     df = add_day_of_week(df)
     return df
@@ -241,6 +256,14 @@ def generate_pdf(data: pd.DataFrame, title: str, filename: str, _data_hash: str)
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
     styles = getSampleStyleSheet()
+
+    # Añadir el logo al PDF
+    try:
+        logo = Image("app/data/logo.png", width=100, height=50)
+        elements.append(logo)
+    except Exception as e:
+        elements.append(Paragraph("Logo no disponible", styles['Normal']))
+
     elements.append(Paragraph(title, styles['Title']))
     elements.append(Paragraph(" ", styles['Normal']))
 
@@ -636,7 +659,7 @@ else:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         with c3:
-            buf_pdf3 = generate_pdf(report_df, "Res abe255b5-9f3e-4c7d-962c-01f373a4bffcumen de Ventas - ASEAVNA", "resumen_ventas_aseavna.pdf", report_df.to_string())
+            buf_pdf3 = generate_pdf(report_df, "Resumen de Ventas - ASEAVNA", "resumen_ventas_aseavna.pdf", report_df.to_string())
             st.download_button(
                 TRANSLATIONS[lang_code]['download_summary_pdf'],
                 data=buf_pdf3,
