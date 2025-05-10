@@ -371,7 +371,7 @@ else:
         selected_centro = st.selectbox("Centro de Costos", centros_costos, key="centro_costos")
 
     if st.sidebar.button(TRANSLATIONS[lang_code]['reset_filters']):
-        st.experimental_rerun()
+        st.rerun()  # Reemplazado st.experimental_rerun() por st.rerun()
 
     # Aplicar filtros
     filtered_df = df.copy()
