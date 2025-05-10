@@ -84,12 +84,8 @@ def load_data():
         return df
 
     def calculate_total(df):
-        # No calculamos Total_Cuentas_Cobrar, solo mantenemos Total como la suma de columnas relevantes (excluyendo cuentas por cobrar)
-        total_cols = ['Precio total colaborador', 'Comision Aseavna']
-        df['Total'] = 0
-        for col in total_cols:
-            if col in df.columns:
-                df['Total'] += pd.to_numeric(df[col], errors='coerce').fillna(0)
+        # Usar directamente 'Precio total colaborador' (Ventas Totales) como 'Total'
+        df['Total'] = pd.to_numeric(df['Precio total colaborador'], errors='coerce').fillna(0)
         return df
 
     def clean_data(df):
@@ -161,7 +157,7 @@ CONFIG = {
         'Fecha': 'Fecha',
         'Número de recibo': 'Número de recibo',
         'Cliente/Nombre principal': 'Cliente/Nombre principal',
-        'Precio total colaborador': 'Ventas Totales',  # Mapeo ajustado para reflejar la columna del Excel
+        'Precio total colaborador': 'Ventas Totales',  # Mapeo de la columna del Excel
         'Comision': 'Comision Aseavna',
         'Cuentas por a cobrar aseavna': 'Cuentas por a cobrar aseavna',
         'Cuentas por a Cobrar Avna': 'Cuentas por a Cobrar Avna',
@@ -373,11 +369,9 @@ else:
         days_of_week = ['Todos'] + sorted(df['Día de la Semana'].dropna().astype(str).unique().tolist())
         selected_day = st.selectbox(TRANSLATIONS[lang_code]['day_of_week'], days_of_week, key="day")
         
-        # Normalizar opciones de clientes para el filtro
         clients = ['Todos'] + sorted(df['Cliente/Nombre'].dropna().astype(str).unique().tolist())
         selected_client = st.selectbox(TRANSLATIONS[lang_code]['specific_client'], clients, key="client")
         
-        # Normalizar opciones de centros de costos
         centros_costos = ['Todos'] + sorted(df['Centro de Costos Aseavna'].dropna().astype(str).unique().tolist())
         selected_centro = st.selectbox("Centro de Costos", centros_costos, key="centro_costos")
 
@@ -408,12 +402,10 @@ else:
     if selected_day != 'Todos':
         filtered_df = filtered_df[filtered_df['Día de la Semana'] == selected_day]
     if selected_client != 'Todos':
-        # Normalizar el valor seleccionado para el filtro
         selected_client_normalized = selected_client.strip().lower()
         filtered_df = filtered_df[filtered_df['Cliente/Nombre'] == selected_client_normalized]
         st.sidebar.write(f"Filas después de filtrar por cliente '{selected_client}': {len(filtered_df)}")
     if selected_centro != 'Todos':
-        # Normalizar el valor seleccionado para el filtro
         selected_centro_normalized = selected_centro.strip().lower()
         filtered_df = filtered_df[filtered_df['Centro de Costos Aseavna'] == selected_centro_normalized]
         st.sidebar.write(f"Filas después de filtrar por centro de costos '{selected_centro}': {len(filtered_df)}")
@@ -426,7 +418,7 @@ else:
 
     # Panel de métricas principales
     st.subheader(TRANSLATIONS[lang_code]['metrics_summary'])
-    col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])  # Espacio equitativo
+    col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
     total_orders = filtered_df['Número de recibo'].nunique()
     total_lines_filtered = len(filtered_df)
     total_commission = filtered_df['Comision'].sum()
@@ -522,7 +514,7 @@ else:
     with tab3:
         st.header(TRANSLATIONS[lang_code]['client_sales'])
         client_sales = filtered_df.groupby('Cliente/Nombre').agg({
-            'Precio total colaborador': 'sum',  # Usamos la columna mapeada como Ventas Totales del Excel
+            'Precio total colaborador': 'sum',
             'Número de recibo': 'nunique',
             'Comision': 'sum',
             'Cuentas por a cobrar aseavna': 'sum',
@@ -539,9 +531,8 @@ else:
             'Producto Más Comprado'
         ]
         
-        # Identificar clientes con volumen de consumo inusual usando percentil 95 basado en Consumo Total
         if not client_sales.empty and client_sales['Consumo Total (₡)'].sum() > 0:
-            threshold = client_sales['Consumo Total (₡)'].quantile(0.95)  # Percentil 95
+            threshold = client_sales['Consumo Total (₡)'].quantile(0.95)
             unusual = client_sales[client_sales['Consumo Total (₡)'] > threshold]
             if not unusual.empty:
                 st.markdown(
@@ -558,7 +549,6 @@ else:
         else:
             st.warning("No hay datos suficientes para identificar clientes con consumo inusual.")
         
-        # Mostrar tabla completa
         client_sales_display = client_sales.copy()
         client_sales_display['Consumo Total (₡)'] = client_sales_display['Consumo Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Comisión Total (₡)'] = client_sales_display['Comisión Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
@@ -661,15 +651,13 @@ else:
     # Tab 5: Visualizaciones Detalladas
     with tab5:
         st.header(TRANSLATIONS[lang_code]['visualizations'])
-        # Filtrar por Centro de Costos para visualizaciones
         viz_df = filtered_df.copy()
         if selected_centro != 'Todos':
             viz_df = viz_df[viz_df['Centro de Costos Aseavna'] == selected_centro_normalized]
 
-        # Top 10 Productos por Consumo (usando Precio total colaborador)
         top10 = viz_df.groupby('Líneas de la orden')['Precio total colaborador'].sum().nlargest(10).reset_index()
         if not top10.empty and top10['Precio total colaborador'].sum() > 0:
-            top10['Precio total colaborador'] = top10['Precio total colaborador'].clip(upper=1e7)  # Limitar valores extremos
+            top10['Precio total colaborador'] = top10['Precio total colaborador'].clip(upper=1e7)
             fig1 = px.bar(
                 top10, 
                 x='Líneas de la orden', 
@@ -694,7 +682,6 @@ else:
         else:
             st.warning("No hay datos suficientes o válidos para mostrar los top 10 productos por consumo.")
 
-        # Tendencia Diaria de Consumo
         daily_summary = viz_df.groupby(viz_df['Fecha'].dt.date)['Precio total colaborador'].sum().reset_index()
         if not daily_summary.empty and daily_summary['Precio total colaborador'].sum() > 0:
             fig2 = px.line(
@@ -719,10 +706,8 @@ else:
         else:
             st.warning("No hay datos suficientes o válidos para mostrar la tendencia diaria de consumo.")
 
-        # Consumo por Grupo de Clientes
         grp = viz_df.groupby('Cliente/Nombre principal')['Precio total colaborador'].sum().reset_index()
         if not grp.empty and grp['Precio total colaborador'].sum() > 0:
-            # Limitar a los top 10 grupos para evitar gráficas abarrotadas
             grp = grp.nlargest(10, 'Precio total colaborador')
             fig3 = px.pie(
                 grp, 
@@ -770,7 +755,7 @@ else:
         with c2:
             buf_xl3 = generate_excel(report_df, "Resumen", report_df.to_string())
             st.download_button(
-                TRANSLATIONS[lang_code]['download_summary_excel'],
+                TRANSLATIONS[lang_code]['developed by Wilfredos for ASEAVNA | Data Source: Point of Sale (POS) Orders | 2025download_summary_excel'],
                 data=buf_xl3,
                 file_name="resumen_ventas_aseavna.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
