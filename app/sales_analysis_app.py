@@ -25,7 +25,7 @@ st.markdown("""
     .stButton>button {background-color: #4CAF50; color: white; border-radius: 5px;}
     .stSidebar {background-color: #e8ecef;}
     h1, h2, h3 {color: #2c3e50;}
-    .metric-box {border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0;}
+    .metric-box {border: 1px solid #d3d3d3; padding: 15px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center;}
     .alert-box {background-color: #ffeb3b; padding: 10px; border-radius: 5px; margin: 10px 0;}
     .stMetric {font-size: 18px;}
     </style>
@@ -90,7 +90,7 @@ def load_data(uploaded_file):
         st.write("Primeras filas de columnas numéricas después de limpieza:")
         st.write(df[['Total', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']].head())
         
-        # Depuración: Mostrar sumas antes de filtros
+        # Depuración: Mostrar sumas totales antes de filtros
         st.write("Sumas totales antes de aplicar filtros:")
         st.write({
             "Total (Precio total colaborador)": df['Total'].sum(),
@@ -172,7 +172,7 @@ else:
     st.sidebar.subheader("Rango de Fechas")
     date_option = st.sidebar.selectbox(
         "Seleccionar Período",
-        ["Personalizado", "Última Semana", "Último Mes"]
+        ["Personalizado", "Última Semana", "Último Mes", "Todo el Período"]
     )
     if date_option == "Última Semana":
         end_date = df['Fecha'].max().date()
@@ -180,6 +180,9 @@ else:
     elif date_option == "Último Mes":
         end_date = df['Fecha'].max().date()
         start_date = end_date - timedelta(days=30)
+    elif date_option == "Todo el Período":
+        start_date = df['Fecha'].min().date()
+        end_date = df['Fecha'].max().date()
     else:
         start_date = df['Fecha'].min().date()
         end_date = df['Fecha'].max().date()
@@ -221,6 +224,31 @@ else:
     if selected_client != 'Todos':
         filtered_df = filtered_df[filtered_df['Cliente/Nombre'] == selected_client]
     
+    # Métricas Generales (usando datos completos df para totales reales)
+    st.header("Métricas Generales")
+    col1, col2, col3, col4 = st.columns(4)
+    total_orders = df['Número de recibo'].nunique()
+    total_commission = df['Comision'].sum()
+    total_cuentas_cobrar_aseavna = df['Cuentas por a cobrar aseavna'].sum()
+    total_cuentas_cobrar_avna = df['Cuentas por a Cobrar Avna'].sum()
+    
+    with col1:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric("Número de Órdenes", f"{total_orders:,}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric("Comisión Total", f"₡{total_commission:,.2f}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric("Ctas. por Cobrar Aseavna", f"₡{total_cuentas_cobrar_aseavna:,.2f}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col4:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric("Ctas. por Cobrar Avna", f"₡{total_cuentas_cobrar_avna:,.2f}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    
     # Verificación de almuerzos ejecutivos duplicados
     st.header("Verificación de Almuerzos Ejecutivos Duplicados")
     lunch_df = filtered_df[filtered_df['Líneas de la orden'] == 'Almuerzo Ejecutivo Aseavna'].copy()
@@ -252,41 +280,6 @@ else:
             )
     else:
         st.success("✅ No se detectaron almuerzos ejecutivos duplicados en el mismo día.")
-    
-    # Métricas Generales
-    st.header("Métricas Generales")
-    col1, col2, col3, col4, col5 = st.columns(5)
-    total_sales = filtered_df['Total'].sum()
-    num_orders = filtered_df['Número de recibo'].nunique()
-    avg_order_value = total_sales / num_orders if num_orders > 0 else 0
-    total_commission = filtered_df['Comision'].sum()
-    total_cuentas_cobrar_aseavna = filtered_df['Cuentas por a cobrar aseavna'].sum()
-    total_cuentas_cobrar_avna = filtered_df['Cuentas por a Cobrar Avna'].sum()
-    
-    with col1:
-        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric("Ventas Totales", f"₡{total_sales:,.2f}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric("Número de Órdenes", f"{num_orders:,}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric("Valor Promedio por Orden", f"₡{avg_order_value:,.2f}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric("Comisión Total", f"₡{total_commission:,.2f}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col5:
-        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric("Ctas. por Cobrar Aseavna", f"₡{total_cuentas_cobrar_aseavna:,.2f}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col1:
-        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
-        st.metric("Ctas. por Cobrar Avna", f"₡{total_cuentas_cobrar_avna:,.2f}")
-        st.markdown('</div>', unsafe_allow_html=True)
     
     # Análisis de Ventas por Cliente
     st.header("Análisis de Ventas por Cliente")
@@ -428,9 +421,7 @@ else:
     
     st.header("Exportar Resumen de Métricas")
     report = {
-        "Ventas Totales (₡)": total_sales,
-        "Número de Órdenes": num_orders,
-        "Valor Promedio por Orden (₡)": avg_order_value,
+        "Número de Órdenes": total_orders,
         "Comisión Total (₡)": total_commission,
         "Ctas. por Cobrar Aseavna (₡)": total_cuentas_cobrar_aseavna,
         "Ctas. por Cobrar Avna (₡)": total_cuentas_cobrar_avna,
