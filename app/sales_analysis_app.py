@@ -53,13 +53,17 @@ def load_data(uploaded_file):
         # Mapeo flexible de columnas
         column_mapping = {
             'Cliente/Código de barras': 'Cliente/Código de barras',
-            'Cliente/Nombre principal': 'Cliente/Nombre principal',
             'Cliente/Nombre': 'Cliente/Nombre',
-            'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad',
-            'Total': 'Precio total colaborador',  # Mapeo a la columna existente
-            'Comision': 'Comision Aseavna',      # Nueva métrica
+            'Centro de Costos Aseavna': 'Centro de Costos Aseavna',
+            'Fecha': 'Fecha',
+            'Número de recibo': 'Número de recibo',
+            'Cliente/Nombre principal': 'Cliente/Nombre principal',
+            'Total': 'Precio total colaborador',
+            'Comision': 'Comision Aseavna',
+            'Cuentas por a cobrar aseavna': 'Cuentas por a cobrar aseavna',
+            'Cuentas por a Cobrar Avna': 'Cuentas por a Cobrar Avna',
             'Líneas de la orden': 'Líneas de la orden',
-            'Número de recibo': 'Número de recibo'
+            'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
         }
         
         # Asignar columnas con fallback
@@ -71,17 +75,18 @@ def load_data(uploaded_file):
         
         # Limpieza de datos
         df['Cliente/Código de barras'] = df['Cliente/Código de barras'].fillna('Desconocido')
-        df['Cliente/Nombre principal'] = df['Cliente/Nombre principal'].fillna('Desconocido')
         df['Cliente/Nombre'] = df['Cliente/Nombre'].fillna('Desconocido')
-        df['Líneas de la orden/Cantidad'] = df['Líneas de la orden/Cantidad'].fillna(0)
+        df['Centro de Costos Aseavna'] = df['Centro de Costos Aseavna'].fillna('Desconocido')
+        df['Cliente/Nombre principal'] = df['Cliente/Nombre principal'].fillna('Desconocido')
+        df['Líneas de la orden'] = df['Líneas de la orden'].fillna('Desconocido')
+        df['Líneas de la orden/Cantidad'] = pd.to_numeric(df['Líneas de la orden/Cantidad'], errors='coerce').fillna(0)
         df['Total'] = pd.to_numeric(df['Total'], errors='coerce').fillna(0)
         df['Comision'] = pd.to_numeric(df['Comision'], errors='coerce').fillna(0)
-        df['Líneas de la orden'] = df['Líneas de la orden'].fillna('Desconocido')
+        df['Cuentas por a cobrar aseavna'] = pd.to_numeric(df['Cuentas por a cobrar aseavna'], errors='coerce').fillna(0)
+        df['Cuentas por a Cobrar Avna'] = pd.to_numeric(df['Cuentas por a Cobrar Avna'], errors='coerce').fillna(0)
         
         # Añadir día de la semana sin depender del locale
-        # Obtener nombres de días en inglés
         df['Día de la Semana'] = df['Fecha'].dt.day_name()
-        # Traducir manualmente a español
         day_translation = {
             'Monday': 'Lunes',
             'Tuesday': 'Martes',
@@ -236,11 +241,13 @@ else:
     
     # Métricas Generales
     st.header("Métricas Generales")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     total_sales = filtered_df['Total'].sum()
     num_orders = filtered_df['Número de recibo'].nunique()
     avg_order_value = total_sales / num_orders if num_orders > 0 else 0
     total_commission = filtered_df['Comision'].sum()
+    total_cuentas_cobrar_aseavna = filtered_df['Cuentas por a cobrar aseavna'].sum()
+    total_cuentas_cobrar_avna = filtered_df['Cuentas por a Cobrar Avna'].sum()
     
     with col1:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
@@ -258,6 +265,14 @@ else:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
         st.metric("Comisión Total", f"₡{total_commission:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
+    with col5:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric("Cuentas por Cobrar Aseavna", f"₡{total_cuentas_cobrar_aseavna:,.2f}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col1:
+        st.markdown('<div class="metric-box">', unsafe_allow_html=True)
+        st.metric("Cuentas por Cobrar Avna", f"₡{total_cuentas_cobrar_avna:,.2f}")
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # Análisis de Ventas por Cliente
     st.header("Análisis de Ventas por Cliente")
@@ -265,6 +280,8 @@ else:
         'Total': 'sum',
         'Número de recibo': 'nunique',
         'Comision': 'sum',
+        'Cuentas por a cobrar aseavna': 'sum',
+        'Cuentas por a Cobrar Avna': 'sum',
         'Líneas de la orden': lambda x: x.mode()[0] if not x.empty else 'N/A'
     }).reset_index()
     client_sales.columns = [
@@ -272,6 +289,8 @@ else:
         'Ventas Totales (₡)',
         'Número de Órdenes',
         'Comisión Total (₡)',
+        'Cuentas por Cobrar Aseavna (₡)',
+        'Cuentas por Cobrar Avna (₡)',
         'Producto Más Comprado'
     ]
     
@@ -399,6 +418,8 @@ else:
         "Número de Órdenes": num_orders,
         "Valor Promedio por Orden (₡)": avg_order_value,
         "Comisión Total (₡)": total_commission,
+        "Cuentas por Cobrar Aseavna (₡)": total_cuentas_cobrar_aseavna,
+        "Cuentas por Cobrar Avna (₡)": total_cuentas_cobrar_avna,
         "Clientes Únicos": len(clients) - 1,
         "Producto Más Vendido": most_sold,
         "Producto Menos Vendido": least_sold
