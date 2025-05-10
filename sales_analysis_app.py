@@ -156,8 +156,8 @@ if authentication_status:
         return buffer
 
     def send_alert(email_to, subject, message):
-        email_from = "tu_email@gmail.com"  # Reemplaza con tu correo
-        password = "tu_contraseña_app"    # Usa una contraseña de aplicación
+        email_from = "ignaciorova@gmail.com"  # Reemplaza con tu correo
+        password = "33502600"    # Usa una contraseña de aplicación
         msg = MIMEText(message)
         msg['Subject'] = subject
         msg['From'] = email_from
