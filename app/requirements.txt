@@ -2,7 +2,8 @@ streamlit
 pandas
 plotly
 openpyxl
-xlsxwriter
 reportlab
+xlsxwriter
 scikit-learn
-numpy
+streamlit-authenticator
+streamlit-aggrid
