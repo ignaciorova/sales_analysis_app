@@ -160,8 +160,8 @@ CONFIG = {
         'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad'
     },
     'styles': {
-        'metric_box': 'border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px 0; text-align: center;',
-        'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px 0; color: white; text-align: center;'
+        'metric_box': 'border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%; display: flex; flex-direction: column; justify-content: center; align-items: center;',
+        'alert_box': 'background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; text-align: center; width: 90%;'
     },
     'colors': {
         'primary': '#4CAF50',
@@ -292,9 +292,10 @@ st.markdown(f"""
 .stButton>button {{background-color: {CONFIG['colors']['primary']}; color: white; border-radius: 5px;}}
 .stSidebar {{background-color: #e8ecef; padding: 5px;}}
 h1, h2, h3 {{color: {CONFIG['colors']['secondary']}; text-align: center;}}
-.metric-box {{{CONFIG['styles']['metric_box']}}}
-.alert-box {{{CONFIG['styles']['alert_box']}}}
-.stMetric {{font-size: 14px; text-align: center;}}
+.metric-box {{border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%; display: flex; flex-direction: column; justify-content: center; align-items: center;}}
+.metric-box .stMetric > div:first-child {{font-size: 14px; color: {CONFIG['colors']['secondary']};}} /* Título */
+.metric-box .stMetric > div:last-child {{font-size: 12px;}} /* Valor */
+.alert-box {{background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; text-align: center; width: 90%;}}
 .logo-container {{text-align: center; margin: 10px 0;}}
 </style>
 """, unsafe_allow_html=True)
