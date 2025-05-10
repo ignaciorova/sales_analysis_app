@@ -78,8 +78,20 @@ def load_data(uploaded_file):
         df['Comision'] = pd.to_numeric(df['Comision'], errors='coerce').fillna(0)
         df['Líneas de la orden'] = df['Líneas de la orden'].fillna('Desconocido')
         
-        # Añadir día de la semana
-        df['Día de la Semana'] = df['Fecha'].dt.day_name(locale='es_ES')
+        # Añadir día de la semana sin depender del locale
+        # Obtener nombres de días en inglés
+        df['Día de la Semana'] = df['Fecha'].dt.day_name()
+        # Traducir manualmente a español
+        day_translation = {
+            'Monday': 'Lunes',
+            'Tuesday': 'Martes',
+            'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves',
+            'Friday': 'Viernes',
+            'Saturday': 'Sábado',
+            'Sunday': 'Domingo'
+        }
+        df['Día de la Semana'] = df['Día de la Semana'].map(day_translation).fillna(df['Día de la Semana'])
         
         # Depuración
         st.write(f"Filas cargadas: {len(df)}")
