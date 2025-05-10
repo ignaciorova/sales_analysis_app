@@ -85,15 +85,17 @@ def load_data():
 
     def calculate_total(df):
         total_cols = ['Precio total colaborador', 'Comision Aseavna', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
-        cuentas_cols = ['Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
-        df['Total'] = 0
-        df['Total_Cuentas_Cobrar'] = 0
+        df['Total Final'] = 0
+        df['Categoria_Ingresos'] = 'Desconocido'  # Nueva columna para graficación
         for col in total_cols:
             if col in df.columns:
-                df['Total'] += pd.to_numeric(df[col], errors='coerce').fillna(0)
-        for col in cuentas_cols:
-            if col in df.columns:
-                df['Total_Cuentas_Cobrar'] += pd.to_numeric(df[col], errors='coerce').fillna(0)
+                df['Total Final'] += pd.to_numeric(df[col], errors='coerce').fillna(0)
+        # Categorizar ingresos para graficación
+        if not df['Total Final'].empty:
+            q25, q75 = df['Total Final'].quantile([0.25, 0.75])
+            df['Categoria_Ingresos'] = df['Total Final'].apply(
+                lambda x: 'Alto' if x > q75 else ('Bajo' if x < q25 else 'Medio')
+            )
         return df
 
     def clean_data(df):
@@ -106,7 +108,7 @@ def load_data():
         }
         for col, default in defaults.items():
             df[col] = df[col].fillna(default)
-        numeric_cols = ['Líneas de la orden/Cantidad', 'Total', 'Total_Cuentas_Cobrar', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna', 'Precio total colaborador']
+        numeric_cols = ['Líneas de la orden/Cantidad', 'Total Final', 'Comision', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna', 'Precio total colaborador']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         # Normalizar columnas de texto para los filtros
@@ -377,11 +379,9 @@ else:
         days_of_week = ['Todos'] + sorted(df['Día de la Semana'].dropna().astype(str).unique().tolist())
         selected_day = st.selectbox(TRANSLATIONS[lang_code]['day_of_week'], days_of_week, key="day")
         
-        # Normalizar opciones de clientes para el filtro
         clients = ['Todos'] + sorted(df['Cliente/Nombre'].dropna().astype(str).unique().tolist())
         selected_client = st.selectbox(TRANSLATIONS[lang_code]['specific_client'], clients, key="client")
         
-        # Normalizar opciones de centros de costos
         centros_costos = ['Todos'] + sorted(df['Centro de Costos Aseavna'].dropna().astype(str).unique().tolist())
         selected_centro = st.selectbox("Centro de Costos", centros_costos, key="centro_costos")
 
@@ -412,12 +412,10 @@ else:
     if selected_day != 'Todos':
         filtered_df = filtered_df[filtered_df['Día de la Semana'] == selected_day]
     if selected_client != 'Todos':
-        # Normalizar el valor seleccionado para el filtro
         selected_client_normalized = selected_client.strip().lower()
         filtered_df = filtered_df[filtered_df['Cliente/Nombre'] == selected_client_normalized]
         st.sidebar.write(f"Filas después de filtrar por cliente '{selected_client}': {len(filtered_df)}")
     if selected_centro != 'Todos':
-        # Normalizar el valor seleccionado para el filtro
         selected_centro_normalized = selected_centro.strip().lower()
         filtered_df = filtered_df[filtered_df['Centro de Costos Aseavna'] == selected_centro_normalized]
         st.sidebar.write(f"Filas después de filtrar por centro de costos '{selected_centro}': {len(filtered_df)}")
@@ -430,7 +428,7 @@ else:
 
     # Panel de métricas principales
     st.subheader(TRANSLATIONS[lang_code]['metrics_summary'])
-    col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])  # Espacio equitativo
+    col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
     total_orders = filtered_df['Número de recibo'].nunique()
     total_lines_filtered = len(filtered_df)
     total_commission = filtered_df['Comision'].sum()
@@ -462,18 +460,18 @@ else:
     # Tab 1: Métricas Generales
     with tab1:
         st.header(TRANSLATIONS[lang_code]['metrics'])
-        most_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmax() if not filtered_df.empty else "N/A"
+        most_sold = filtered_df.groupby('Líneas de la orden')['Total Final'].sum().idxmax() if not filtered_df.empty else "N/A"
         col1, col2 = st.columns(2)
         with col1:
             st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["top_product"]}</span><span class="value">{most_sold}</span></div>', unsafe_allow_html=True)
         with col2:
             st.markdown(f'<div class="metric-box"><span class="title">{TRANSLATIONS[lang_code]["unique_clients"]}</span><span class="value">{len(filtered_df["Cliente/Nombre"].unique())}</span></div>', unsafe_allow_html=True)
         
-        daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index()
+        daily_summary = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total Final'].sum().reset_index()
         if not daily_summary.empty:
             fig_summary = px.line(
-                daily_summary, x='Fecha', y='Total',
-                labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
+                daily_summary, x='Fecha', y='Total Final',
+                labels={'Total Final': 'Ventas (₡)', 'Fecha': 'Fecha'},
                 title=TRANSLATIONS[lang_code]['daily_sales'],
                 template="plotly_white",
                 color_discrete_sequence=["#4CAF50"]
@@ -526,8 +524,7 @@ else:
     with tab3:
         st.header(TRANSLATIONS[lang_code]['client_sales'])
         client_sales = filtered_df.groupby('Cliente/Nombre').agg({
-            'Total': 'sum',
-            'Total_Cuentas_Cobrar': 'sum',
+            'Total Final': 'sum',
             'Número de recibo': 'nunique',
             'Comision': 'sum',
             'Cuentas por a cobrar aseavna': 'sum',
@@ -537,7 +534,6 @@ else:
         client_sales.columns = [
             'Cliente',
             'Ventas Totales (₡)',
-            'Total Cuentas por Cobrar (₡)',
             'Número de Órdenes',
             'Comisión Total (₡)',
             'Ctas. por Cobrar Aseavna (₡)',
@@ -545,29 +541,26 @@ else:
             'Producto Más Comprado'
         ]
         
-        # Identificar clientes con volumen de compras inusual usando percentil 95 basado en Total_Cuentas_Cobrar
-        if not client_sales.empty and client_sales['Total Cuentas por Cobrar (₡)'].sum() > 0:
-            threshold = client_sales['Total Cuentas por Cobrar (₡)'].quantile(0.95)  # Percentil 95
-            unusual = client_sales[client_sales['Total Cuentas por Cobrar (₡)'] > threshold]
+        if not client_sales.empty and client_sales['Ventas Totales (₡)'].sum() > 0:
+            threshold = client_sales['Ventas Totales (₡)'].quantile(0.95)
+            unusual = client_sales[client_sales['Ventas Totales (₡)'] > threshold]
             if not unusual.empty:
                 st.markdown(
                     f'<div class="alert-box" style="background-color: {CONFIG["colors"]["warning"]}; color: black;">'
-                    f'{TRANSLATIONS[lang_code]["unusual_sales"]} (Cuentas por Cobrar > ₡{threshold:,.2f})'
+                    f'{TRANSLATIONS[lang_code]["unusual_sales"]} (Ventas > ₡{threshold:,.2f})'
                     f'</div>',
                     unsafe_allow_html=True
                 )
-                unusual_display = unusual[['Cliente', 'Total Cuentas por Cobrar (₡)', 'Número de Órdenes']].copy()
-                unusual_display['Total Cuentas por Cobrar (₡)'] = unusual_display['Total Cuentas por Cobrar (₡)'].apply(lambda x: f"₡{x:,.2f}")
+                unusual_display = unusual[['Cliente', 'Ventas Totales (₡)', 'Número de Órdenes']].copy()
+                unusual_display['Ventas Totales (₡)'] = unusual_display['Ventas Totales (₡)'].apply(lambda x: f"₡{x:,.2f}")
                 st.dataframe(unusual_display)
             else:
-                st.info("No se encontraron clientes con volumen de cuentas por cobrar inusual.")
+                st.info("No se encontraron clientes con volumen de ventas inusual.")
         else:
-            st.warning("No hay datos suficientes para identificar clientes con cuentas por cobrar inusuales.")
+            st.warning("No hay datos suficientes para identificar clientes con ventas inusuales.")
         
-        # Mostrar tabla completa
         client_sales_display = client_sales.copy()
         client_sales_display['Ventas Totales (₡)'] = client_sales_display['Ventas Totales (₡)'].apply(lambda x: f"₡{x:,.2f}")
-        client_sales_display['Total Cuentas por Cobrar (₡)'] = client_sales_display['Total Cuentas por Cobrar (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Comisión Total (₡)'] = client_sales_display['Comisión Total (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Ctas. por Cobrar Aseavna (₡)'] = client_sales_display['Ctas. por Cobrar Aseavna (₡)'].apply(lambda x: f"₡{x:,.2f}")
         client_sales_display['Ctas. por Cobrar Avna (₡)'] = client_sales_display['Ctas. por Cobrar Avna (₡)'].apply(lambda x: f"₡{x:,.2f}")
@@ -604,12 +597,12 @@ else:
     with tab4:
         st.header(TRANSLATIONS[lang_code]['predictive'])
         try:
-            daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total'].sum().reset_index(name='Total')
+            daily = filtered_df.groupby(filtered_df['Fecha'].dt.date)['Total Final'].sum().reset_index(name='Total Final')
             daily['Days'] = (pd.to_datetime(daily['Fecha']) - pd.to_datetime(daily['Fecha'].min())).dt.days
             
             if len(daily) > 1:
                 X = sm.add_constant(daily['Days'])
-                model = sm.OLS(daily['Total'], X).fit()
+                model = sm.OLS(daily['Total Final'], X).fit()
                 future_days = np.array([daily['Days'].iloc[-1] + i for i in range(1, 8)])
                 future_X = sm.add_constant(future_days)
                 preds = model.predict(future_X)
@@ -617,22 +610,22 @@ else:
                 
                 pred_df = pd.DataFrame({
                     'Fecha': [pd.to_datetime(daily['Fecha']).max() + timedelta(days=i) for i in range(1, 8)],
-                    'Total': preds,
+                    'Total Final': preds,
                     'Lower': conf_int[:, 0],
                     'Upper': conf_int[:, 1],
                     'Tipo': 'Predicción'
                 })
                 hist_df = pd.DataFrame({
                     'Fecha': pd.to_datetime(daily['Fecha']),
-                    'Total': daily['Total'],
+                    'Total Final': daily['Total Final'],
                     'Tipo': 'Histórico'
                 })
                 combined = pd.concat([hist_df, pred_df])
                 
                 st.subheader(TRANSLATIONS[lang_code]['predictive_subheader'])
                 fig_pred = px.line(
-                    combined, x='Fecha', y='Total', color='Tipo',
-                    labels={'Total': 'Ventas (₡)', 'Fecha': 'Fecha'},
+                    combined, x='Fecha', y='Total Final', color='Tipo',
+                    labels={'Total Final': 'Ventas (₡)', 'Fecha': 'Fecha'},
                     title="Tendencia Histórica y Predicción de Ventas con Intervalos de Confianza",
                     template="plotly_white",
                     color_discrete_sequence=["#4CAF50", "#FF5733"]
@@ -651,7 +644,7 @@ else:
                 )
                 st.plotly_chart(fig_pred, use_container_width=True)
                 
-                trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total'].sum().unstack(fill_value=0)
+                trends = filtered_df.groupby(['Líneas de la orden', filtered_df['Fecha'].dt.to_period('M')])['Total Final'].sum().unstack(fill_value=0)
                 if trends.shape[1] >= 2:
                     growth = ((trends.iloc[:, -1] - trends.iloc[:, -2]) / trends.iloc[:, -2].replace(0, np.nan) * 100).replace([np.inf, -np.inf], 0).dropna().sort_values(ascending=False)
                     top5 = growth.head(5).reset_index()
@@ -668,24 +661,27 @@ else:
     # Tab 5: Visualizaciones Detalladas
     with tab5:
         st.header(TRANSLATIONS[lang_code]['visualizations'])
-        # Filtrar por Centro de Costos para visualizaciones
         viz_df = filtered_df.copy()
         if selected_centro != 'Todos':
             viz_df = viz_df[viz_df['Centro de Costos Aseavna'] == selected_centro_normalized]
 
-        # Top 10 Productos por Cuentas por Cobrar
-        top10 = viz_df.groupby('Líneas de la orden')['Total_Cuentas_Cobrar'].sum().nlargest(10).reset_index()
-        if not top10.empty and top10['Total_Cuentas_Cobrar'].sum() > 0:
-            top10['Total_Cuentas_Cobrar'] = top10['Total_Cuentas_Cobrar'].clip(upper=1e7)  # Limitar valores extremos
+        # Top 10 Productos por Ventas
+        top10 = viz_df.groupby('Líneas de la orden').agg({
+            'Total Final': 'sum',
+            'Categoria_Ingresos': lambda x: x.mode()[0] if not x.empty else 'Desconocido'
+        }).nlargest(10, 'Total Final').reset_index()
+        if not top10.empty and top10['Total Final'].sum() > 0:
+            top10['Total Final'] = top10['Total Final'].clip(upper=1e7)
             fig1 = px.bar(
                 top10, 
                 x='Líneas de la orden', 
-                y='Total_Cuentas_Cobrar',
+                y='Total Final',
+                color='Categoria_Ingresos',
                 title=TRANSLATIONS[lang_code]['top_products'],
-                labels={'Total_Cuentas_Cobrar': 'Cuentas por Cobrar (₡)', 'Líneas de la orden': 'Producto'},
+                labels={'Total Final': 'Ventas (₡)', 'Líneas de la orden': 'Producto'},
                 template="plotly_white",
-                color_discrete_sequence=["#4CAF50"],
-                hover_data={'Total_Cuentas_Cobrar': ':,.2f'}
+                color_discrete_map={'Alto': '#FF5733', 'Medio': '#4CAF50', 'Bajo': '#4682B4'},
+                hover_data={'Total Final': ':,.2f'}
             )
             fig1.update_layout(
                 margin=dict(l=40, r=40, t=80, b=100),
@@ -693,22 +689,21 @@ else:
                 xaxis_title_font_size=14,
                 yaxis_title_font_size=14,
                 title_x=0.5,
-                showlegend=False,
                 xaxis=dict(tickmode='linear'),
                 yaxis=dict(gridcolor='lightgray')
             )
             st.plotly_chart(fig1, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar los top 10 productos por cuentas por cobrar.")
+            st.warning("No hay datos suficientes o válidos para mostrar los top 10 productos por ventas.")
 
-        # Tendencia Diaria de Cuentas por Cobrar
-        daily_summary = viz_df.groupby(viz_df['Fecha'].dt.date)['Total_Cuentas_Cobrar'].sum().reset_index()
-        if not daily_summary.empty and daily_summary['Total_Cuentas_Cobrar'].sum() > 0:
+        # Tendencia Diaria de Ventas
+        daily_summary = viz_df.groupby(viz_df['Fecha'].dt.date)['Total Final'].sum().reset_index()
+        if not daily_summary.empty and daily_summary['Total Final'].sum() > 0:
             fig2 = px.line(
                 daily_summary, 
                 x='Fecha', 
-                y='Total_Cuentas_Cobrar',
-                labels={'Total_Cuentas_Cobrar': 'Cuentas por Cobrar (₡)', 'Fecha': 'Fecha'},
+                y='Total Final',
+                labels={'Total Final': 'Ventas (₡)', 'Fecha': 'Fecha'},
                 title=TRANSLATIONS[lang_code]['daily_trend'],
                 template="plotly_white",
                 color_discrete_sequence=["#4CAF50"],
@@ -724,17 +719,16 @@ else:
             )
             st.plotly_chart(fig2, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar la tendencia diaria de cuentas por cobrar.")
+            st.warning("No hay datos suficientes o válidos para mostrar la tendencia diaria de ventas.")
 
-        # Cuentas por Cobrar por Grupo de Clientes
-        grp = viz_df.groupby('Cliente/Nombre principal')['Total_Cuentas_Cobrar'].sum().reset_index()
-        if not grp.empty and grp['Total_Cuentas_Cobrar'].sum() > 0:
-            # Limitar a los top 10 grupos para evitar gráficas abarrotadas
-            grp = grp.nlargest(10, 'Total_Cuentas_Cobrar')
+        # Ventas por Grupo de Clientes
+        grp = viz_df.groupby('Cliente/Nombre principal')['Total Final'].sum().reset_index()
+        if not grp.empty and grp['Total Final'].sum() > 0:
+            grp = grp.nlargest(10, 'Total Final')
             fig3 = px.pie(
                 grp, 
                 names='Cliente/Nombre principal', 
-                values='Total_Cuentas_Cobrar',
+                values='Total Final',
                 title=TRANSLATIONS[lang_code]['sales_by_group'],
                 template="plotly_white",
                 color_discrete_sequence=px.colors.sequential.Viridis
@@ -747,13 +741,13 @@ else:
             )
             st.plotly_chart(fig3, use_container_width=True)
         else:
-            st.warning("No hay datos suficientes o válidos para mostrar las cuentas por cobrar por grupo de clientes.")
+            st.warning("No hay datos suficientes o válidos para mostrar las ventas por grupo de clientes.")
 
     # Tab 6: Resumen de Métricas para Exportar
     with tab6:
         st.header(TRANSLATIONS[lang_code]['export'])
-        most_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmax() if not filtered_df.empty else "N/A"
-        least_sold = filtered_df.groupby('Líneas de la orden')['Total'].sum().idxmin() if not filtered_df.empty else "N/A"
+        most_sold = filtered_df.groupby('Líneas de la orden')['Total Final'].sum().idxmax() if not filtered_df.empty else "N/A"
+        least_sold = filtered_df.groupby('Líneas de la orden')['Total Final'].sum().idxmin() if not filtered_df.empty else "N/A"
         
         report = {
             "Número de Órdenes": total_orders,
