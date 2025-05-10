@@ -183,7 +183,6 @@ st.title(TRANSLATIONS[lang_code]['title'])
 st.markdown(TRANSLATIONS[lang_code]['description'])
 
 # Carga de datos
-@st.cache_data
 def load_data():
     def load_excel():
         try:
@@ -209,7 +208,6 @@ def load_data():
         return df
 
     def calculate_total(df):
-        # Usar columnas mapeadas para calcular Total
         total_cols = ['precio total colaborador', 'Cuentas por a cobrar aseavna', 'Cuentas por a Cobrar Avna']
         df['Total'] = 0
         for col in total_cols:
@@ -249,60 +247,11 @@ def load_data():
     if df.empty or not validate_data(df):
         return pd.DataFrame()
     df = map_columns(df)
-    df = calculate_total(df)  # Calcular Total
+    df = calculate_total(df)
     df = clean_data(df)
     df = add_day_of_week(df)
     return df
 
-@st.cache_data
-def generate_pdf(data: pd.DataFrame, title: str, filename: str, _data_hash: str) -> io.BytesIO:
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    elements = []
-    styles = getSampleStyleSheet()
-
-    # Añadir el logo al PDF
-    try:
-        logo = Image("app/data/logo.png", width=100, height=50)
-        elements.append(logo)
-    except Exception as e:
-        elements.append(Paragraph("Logo no disponible", styles['Normal']))
-
-    elements.append(Paragraph(title, styles['Title']))
-    elements.append(Paragraph(" ", styles['Normal']))
-
-    data_list = [data.columns.tolist()] + data.values.tolist()
-    table = Table(data_list)
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-    ]))
-    elements.append(table)
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
-
-@st.cache_data
-def generate_excel(data: pd.DataFrame, sheet_name: str, _data_hash: str) -> io.BytesIO:
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        data.to_excel(writer, sheet_name=sheet_name, index=False)
-        workbook = writer.book
-        worksheet = writer.sheets[sheet_name]
-        header_fmt = workbook.add_format({'bold': True, 'bg_color': '#D3D3D3'})
-        for col_num, value in enumerate(data.columns.values):
-            worksheet.write(0, col_num, value, header_fmt)
-        worksheet.autofit()
-    buffer.seek(0)
-    return buffer
-
-# Carga de datos automática
 df = load_data()
 
 if df.empty:
@@ -338,6 +287,7 @@ else:
         )
 
     with st.sidebar.expander("Filtros de Categorías"):
+        # Generar opciones de filtros dinámicamente basadas en df
         product_types = ['Todos'] + sorted(df['Líneas de la orden'].dropna().astype(str).unique().tolist())
         selected_product = st.selectbox(TRANSLATIONS[lang_code]['product_type'], product_types, key="product")
         
@@ -370,13 +320,19 @@ else:
     if selected_client != 'Todos':
         filtered_df = filtered_df[filtered_df['Cliente/Nombre'] == selected_client]
 
-    # Panel de métricas principales
+    # Actualizar filtros dinámicos después de aplicar los primeros filtros
+    product_types = ['Todos'] + sorted(filtered_df['Líneas de la orden'].dropna().astype(str).unique().tolist())
+    client_groups = ['Todos'] + sorted(filtered_df['Cliente/Nombre principal'].dropna().astype(str).unique().tolist())
+    days_of_week = ['Todos'] + sorted(filtered_df['Día de la Semana'].dropna().astype(str).unique().tolist())
+    clients = ['Todos'] + sorted(filtered_df['Cliente/Nombre'].dropna().astype(str).unique().tolist())
+
+    # Panel de métricas principales (basado en filtered_df)
     st.subheader(TRANSLATIONS[lang_code]['metrics_summary'])
     col1, col2, col3, col4 = st.columns(4)
-    total_orders = df['Número de recibo'].nunique()
-    total_commission = df['Comision'].sum()
-    total_cuentas_cobrar_aseavna = df['Cuentas por a cobrar aseavna'].sum()
-    total_cuentas_cobrar_avna = df['Cuentas por a Cobrar Avna'].sum()
+    total_orders = filtered_df['Número de recibo'].nunique()
+    total_commission = filtered_df['Comision'].sum()
+    total_cuentas_cobrar_aseavna = filtered_df['Cuentas por a cobrar aseavna'].sum()
+    total_cuentas_cobrar_avna = filtered_df['Cuentas por a Cobrar Avna'].sum()
 
     with col1:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
