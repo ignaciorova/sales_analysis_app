@@ -182,7 +182,7 @@ CONFIG = {
 TRANSLATIONS = {
     'es': {
         'title': '📊 Dashboard de Análisis de Ventas - ASEAVNA',
-        'description': 'Análisis avanzado de órdenes de venta del sistema POS, con métricas, predicciones y reportes descargables por cliente.',
+        'description': 'Análisis de órdenes de venta del sistema POS.',
         'filters_header': 'Filtros de Análisis',
         'date_range': 'Rango de Fechas',
         'select_period': 'Seleccionar Período',
