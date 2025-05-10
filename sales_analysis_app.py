@@ -298,7 +298,7 @@ st.markdown(f"""
 h1, h2, h3 {{color: {CONFIG['colors']['secondary']};}}
 .metric-box {{{CONFIG['styles']['metric_box']}}}
 .alert-box {{{CONFIG['styles']['alert_box']}}}
-.stMetric {{font-size: 18px;}}
+.stMetric {{font-size: 14px;}} /* Reducir tamaño de fuente para que quepa el valor completo */
 .logo-container {{text-align: center; margin-bottom: 20px;}}
 </style>
 """, unsafe_allow_html=True)
