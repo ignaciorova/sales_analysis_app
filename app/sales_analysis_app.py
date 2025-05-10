@@ -41,30 +41,54 @@ def load_data(uploaded_file):
             raise FileNotFoundError("No se ha cargado ningún archivo.")
         df = pd.read_excel(uploaded_file, engine='openpyxl')
         
+        # Mostrar columnas detectadas para depuración
+        st.write("Columnas detectadas en el archivo:", df.columns.tolist())
+        
         # Detectar si 'Fecha' es serial de Excel (numérico) o ya datetime
         if pd.api.types.is_numeric_dtype(df['Fecha']):
             df['Fecha'] = pd.to_datetime(df['Fecha'], unit='D', origin='1899-12-30') - timedelta(days=2)
         else:
             df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
         
-        # Limpieza de columnas
+        # Mapeo flexible de columnas
+        column_mapping = {
+            'Cliente/Código de barras': 'Cliente/Código de barras',
+            'Cliente/Nombre principal': 'Cliente/Nombre principal',
+            'Cliente/Nombre': 'Cliente/Nombre',
+            'Líneas de la orden/Cantidad': 'Líneas de la orden/Cantidad',
+            'Total': ['Total', 'Precio total colaborador', 'Monto Neto'],  # Intenta varios nombres
+            'Monto Descuento': ['Monto Descuento', 'Descuento'],
+            'Monto Neto': ['Monto Neto', 'Precio total'],
+            'Líneas de la orden': 'Líneas de la orden',
+            'Número de recibo': 'Número de recibo'
+        }
+        
+        # Asignar columnas con fallback
+        for expected_col, possible_names in column_mapping.items():
+            if isinstance(possible_names, list):
+                found = False
+                for name in possible_names:
+                    if name in df.columns:
+                        df[expected_col] = df[name]
+                        found = True
+                        break
+                if not found:
+                    df[expected_col] = 'Desconocido' if 'Cliente' in expected_col or 'Líneas' in expected_col else 0
+            else:
+                if possible_names in df.columns:
+                    df[expected_col] = df[possible_names]
+                else:
+                    df[expected_col] = 'Desconocido' if 'Cliente' in possible_names or 'Líneas' in possible_names else 0
+        
+        # Limpieza de datos
         df['Cliente/Código de barras'] = df['Cliente/Código de barras'].fillna('Desconocido')
         df['Cliente/Nombre principal'] = df['Cliente/Nombre principal'].fillna('Desconocido')
         df['Cliente/Nombre'] = df['Cliente/Nombre'].fillna('Desconocido')
         df['Líneas de la orden/Cantidad'] = df['Líneas de la orden/Cantidad'].fillna(0)
-        df['Total'] = df['Total'].fillna(0)
-        df['Monto Descuento'] = df['Monto Descuento'].fillna(0)
-        df['Monto Neto'] = df['Monto Neto'].fillna(0)
+        df['Total'] = pd.to_numeric(df['Total'], errors='coerce').fillna(0)
+        df['Monto Descuento'] = pd.to_numeric(df['Monto Descuento'], errors='coerce').fillna(0)
+        df['Monto Neto'] = pd.to_numeric(df['Monto Neto'], errors='coerce').fillna(0)
         df['Líneas de la orden'] = df['Líneas de la orden'].fillna('Desconocido')
-        
-        numeric_cols = [
-            'Líneas de la orden/Cantidad',
-            'Total',
-            'Monto Descuento',
-            'Monto Neto'
-        ]
-        for col in numeric_cols:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         
         # Añadir día de la semana
         df['Día de la Semana'] = df['Fecha'].dt.day_name(locale='es_ES')
@@ -76,7 +100,7 @@ def load_data(uploaded_file):
         return df
 
     except Exception as e:
-        st.error(f"Error al cargar los datos: {e}")
+        st.error(f"Error al cargar los datos: {str(e)}")
         return pd.DataFrame()
 
 def generate_pdf(data: pd.DataFrame, title: str, filename: str) -> io.BytesIO:
