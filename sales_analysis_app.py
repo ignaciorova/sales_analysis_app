@@ -302,9 +302,15 @@ st.markdown(f"""
 h1, h2, h3 {{color: {CONFIG['colors']['secondary']}; text-align: center;}}
 .metric-box {{border: 1px solid #d3d3d3; padding: 10px; border-radius: 5px; background-color: white; margin: 5px auto; text-align: center; width: 90%; display: flex; flex-direction: column; justify-content: center; align-items: center;}}
 .metric-box .title {{font-size: 10px; color: {CONFIG['colors']['primary']}; margin-bottom: 2px;}}
-.metric-box .value {{font-size: 12px;}}
+.metric-box .value {{font-size: 14px; color: {CONFIG['colors']['secondary']}; font-weight: bold;}}
 .alert-box {{background-color: #ff4d4d; padding: 10px; border-radius: 5px; margin: 10px auto; color: white; text-align: center; width: 90%;}}
 .logo-container {{text-align: center; margin: 10px 0;}}
+/* Ajustes para dispositivos móviles */
+@media (max-width: 600px) {{
+    .metric-box {{width: 95%; padding: 8px;}}
+    .metric-box .title {{font-size: 9px;}}
+    .metric-box .value {{font-size: 12px;}}
+}}
 </style>
 """, unsafe_allow_html=True)
 
